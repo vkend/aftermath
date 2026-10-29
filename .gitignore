@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+dist/
+
+# Secrets
+.env
+.env.*
+
+# Photos, recordings, model caches, check-in records and run outputs stay on this machine
+data/
+
+# No media in git, wherever it lands
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.heic
+*.HEIC
+*.wav
+*.m4a
+
+# Browser automation captures (screenshots, page snapshots)
+.playwright-mcp/
+
+# macOS
+.DS_Store
+
+# Certificates and keys (scripts/make_certs.sh writes them to data/certs/)
+*.key
+*.crt
+*.pem
+*.srl

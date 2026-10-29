@@ -1,0 +1,33 @@
+[project]
+name = "aftermath"
+version = "0.1.0"
+description = "After a hurricane cuts the power: a phone coach that measures how far the generator is from the door and checks it against CDC and NIST guidance, in Hindi and English."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.143.0",
+    "httpx>=0.28.1",
+    "mlx-audio>=0.5.9",
+    "mlx-vlm>=0.7.8",
+    "numpy>=2.5.4",
+    "pillow>=12.3.0",
+    "torch>=2.14.1",
+    "transformers>=5.19.0",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+aftermath = "aftermath:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.uv]
+# Supply-chain guard: resolve only releases at least two weeks older than the day dependencies were added.
+exclude-newer = "2026-10-14T04:00:00Z"
