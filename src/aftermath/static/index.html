@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="hi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Aftermath</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Aftermath</h1>
+    <p id="subtitle">जनरेटर और कार्बन मोनोऑक्साइड, तूफ़ान के बाद</p>
+    <div class="languages" role="group" aria-label="भाषा / Language / Idioma">
+      <button data-language="hi" class="language chosen">हिन्दी</button>
+      <button data-language="en" class="language">English</button>
+      <button data-language="es" class="language">Español <small>(solo seguridad)</small></button>
+    </div>
+  </header>
+
+  <main>
+    <section id="welcome">
+      <p id="welcome-text">सहायक से बात करें, या जहाँ जनरेटर है वहाँ से दरवाज़े की फ़ोटो लें।</p>
+      <button id="begin" class="primary" disabled>शुरू करें</button>
+    </section>
+
+    <p id="checkin-banner" class="banner" hidden>रात की जाँच</p>
+
+    <section id="verdict" class="card" hidden>
+      <h2 id="verdict-title"></h2>
+      <p id="verdict-text"></p>
+      <div id="measurement" hidden>
+        <p class="distance"><span id="feet"></span> <span id="range"></span></p>
+        <ul id="warnings"></ul>
+        <p id="limits" class="small"></p>
+        <img id="outline" alt="">
+      </div>
+    </section>
+
+    <section id="actions" hidden>
+      <button id="talk" class="primary">बोलें</button>
+      <label class="button">
+        <span id="door-label">दरवाज़े की फ़ोटो</span>
+        <input id="door" type="file" accept="image/*">
+      </label>
+      <label class="button">
+        <span id="plate-label">जनरेटर के लेबल की फ़ोटो</span>
+        <input id="plate" type="file" accept="image/*" capture="environment">
+      </label>
+      <p id="status" class="small" aria-live="polite"></p>
+      <div id="reply" class="reply" hidden>
+        <p id="reply-text" aria-live="polite"></p>
+        <button id="listen" class="listen" hidden>सुनें</button>
+      </div>
+    </section>
+
+    <section id="conversation" hidden>
+      <ol id="log"></ol>
+    </section>
+
+    <section id="advice-section" hidden>
+      <h2 id="advice-title">सलाह क्या कहती है</h2>
+      <ul id="advice"></ul>
+    </section>
+
+    <section id="tonight" class="card" hidden>
+      <h2 id="tonight-title">आज रात</h2>
+      <p id="tonight-text" class="small"></p>
+      <label class="field"><span id="time-label">जाँच का समय</span>
+        <input id="checkin-time" type="time" value="02:00">
+      </label>
+      <a id="add-calendar" class="button" href="#" target="_blank" rel="noopener">कैलेंडर में जोड़ें</a>
+      <button id="check-now">अभी जाँच करें</button>
+      <label class="field"><span id="note-label">परिवार के लिए नोट (अगर चाहें)</span>
+        <textarea id="note" rows="2"></textarea>
+      </label>
+      <button id="share" class="primary">परिवार को सारांश भेजें</button>
+      <details id="summary-details">
+        <summary id="preview-label">सारांश देखें (अंग्रेज़ी में)</summary>
+        <pre id="summary-text"></pre>
+      </details>
+    </section>
+  </main>
+
+  <footer>
+    <p id="not-911">मैं 911 नहीं हूँ। अगर किसी की तबीयत ख़राब लगे, तो खुली हवा में जाएँ और 911 पर फ़ोन करें।</p>
+  </footer>
+  <audio id="player" playsinline></audio>
+  <script src="/static/app.js"></script>
+</body>
+</html>
