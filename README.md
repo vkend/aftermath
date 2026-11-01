@@ -32,7 +32,7 @@ language: Ready.gov publishes the generator rule in Hindi only as a picture, and
 | If the model fails or the network drops, nothing counts as read: the coach says it didn't catch that and asks again | Built, tested |
 | Symptom words, and a carbon monoxide alarm heard sounding, skip the language model and get the emergency line at once | Built, tested |
 | Answers that would take a danger off the list must be plain; the model's readings of that kind are read back first | Built, tested; checked live with MMS and macOS voices |
-| **Rating plate** read by Muse Glimmer (or Spark) into fixed fields, sanity-checked, read back; the CO advice never depends on it | Built; Spark read a drawn test plate right; real plates on Oct 31 |
+| **Rating plate** read by Muse Glimmer (or Spark) into fixed fields, sanity-checked, read back; the CO advice never depends on it | Built; Spark read a drawn test plate right; not yet tried on a real plate |
 | Screening: what they heat and cook with, heat and cold, downed power lines | Built (asked one question at a time) |
 | **Overnight check-in:** a calendar reminder reopens the page; symptoms, "still outside?" and the CO alarm are asked again, as strictly; a plain-English summary for family goes out through the phone's share sheet | Built, tested; "Check in now" for a demo |
 
@@ -136,7 +136,7 @@ scored by what the conversation does with it, next to what it does with the answ
 - Voice Transcribe returns an empty transcript for a lone "Sí." 0.4 s long with no silence around it, and hears it
   with 0.5 s of silence on each side, so the app adds that (about one billed second a turn).
 - A lone "हाँ" is the hard case: MMS heard none of four ("fhcc", "खत"), Voice Transcribe one.
-- These are synthetic voices on clean audio. Phone recordings with a running generator nearby come next.
+- These are synthetic voices on clean audio. Real voices on a phone come next.
 
 API mode uses Voice Transcribe; MMS stays for when there's no internet after a storm.
 

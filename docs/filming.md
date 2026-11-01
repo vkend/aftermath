@@ -1,15 +1,12 @@
-# Saturday Oct 31: filming checklist
+# Filming checklist
 
 Print this. Photos and recordings stay on the laptop under `data/`, which is never committed.
 
 ## 1. Safety first
 
-- **The generator stays OFF for every shot near the house**, including the "7 ft from the window" scene. The video
-  says so: the near-house shots were filmed with it off.
-- If it runs at all: outdoors in the open, **more than 25 ft from every door, window and vent**, exhaust pointing
-  away. Never in the garage, shed or porch, even with the door open.
-- **Never refuel it hot:** turn it off and let it cool first.
-- Keep a battery CO alarm in the house while it runs, and stay out of its exhaust.
+- **No generator is run for this shoot.** A chalk X marks where one would stand. Nothing here needs one running, and
+  the video says so.
+- If a borrowed or store generator is in a shot, or you're photographing its plate, it stays off.
 - Keep house numbers, street signs, car plates and other people's faces out of shots meant for the video.
 
 ## 2. Before you start
@@ -21,11 +18,11 @@ Print this. Photos and recordings stay on the laptop under `data/`, which is nev
   measures it as if at 1× and asks «क्या फ़ोटो लेते समय कैमरा 1× पर था…?». A Camera-app photo picked from Photo Library
   keeps the lens, and also the photo's location, which stays on the laptop with the rest.
 - Camera app: photo mode, **1×**, phone upright. Keep the originals: texts and chat apps can strip the lens data.
-- Bring a tape measure (30 ft or longer), chalk or a marker for the generator's spot, a pencil and this sheet.
+- Bring a tape measure (30 ft or longer), chalk or tape to mark each spot, a pencil and this sheet.
 
 ## 3. Door photos
 
-Mark the generator's spot. Stand on it with the phone upright at chest height, level, the door in the middle of the
+Mark each spot with an X, where a generator would stand. Stand on it with the phone upright at chest height, level, the door in the middle of the
 frame and all of it in view. Tape the distance **from the ground under the phone straight to the door's face**
 (square to the door) and write it to the inch. Once per door, tape the **leaf**: the door itself, bottom edge to top
 edge, not the frame.
@@ -44,7 +41,21 @@ edge, not the frame.
 | D20 | two doors in view | both distances | which one is nearer |
 | D21 | main | about 20 ft | through the app, Take Photo at 0.5× (it reads far: answer «नहीं» to the 1× question) |
 
+**The video's hero take**, once the shots above are done. One continuous take if possible, from the first X:
+
+1. Stand on the X at about 7 ft, with the whole door in frame. **दरवाज़े की फ़ोटो** → Take Photo at 1×. It should say too close.
+2. Walk out to an X at **28–30 ft** and take another photo the same way. Answer «हाँ, 1× पर था», then «हाँ, बाहर है».
+   It should say it meets the guidance.
+3. Pull the tape from that X to the door and show the reading.
+
+A Take Photo reads a little short and the verdict uses the low end of the error range, so 25 ft can read "borderline".
+That's the app being cautious, not a failure. Try the far spot once before the good take.
+
 ## 4. Rating plate
+
+Only the label is needed, with the generator off. Any of these works: a display model at a store (ask staff first, keep
+other people out of the photos), or a neighbour's or friend's generator. If a store says yes, take P1–P2 of every model
+it has: more plates make a better test. If there's no plate at all, skip this section.
 
 - **P1–P2:** straight on, close enough to read every number, no glare: one through the app (**जनरेटर के लेबल की
   फ़ोटो**), one with the Camera app.
@@ -110,7 +121,7 @@ says oddly, in that line or any other.
 | second | | | |
 | garage | | | |
 
-**Plate:** brand ______ model ______ running W ______ starting W ______ volts ______ Hz ______ amps ______
+**Plate** (copy this line for each one)**:** where ______ brand ______ model ______ running W ______ starting W ______ volts ______ Hz ______ amps ______
 fuel ______ CO shutoff yes / no
 
 **Speakers** (initials only): ______________________________
