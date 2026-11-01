@@ -41,15 +41,17 @@ edge, not the frame.
 | D20 | two doors in view | both distances | which one is nearer |
 | D21 | main | about 20 ft | through the app, Take Photo at 0.5× (it reads far: answer «नहीं» to the 1× question) |
 
-**The video's hero take**, once the shots above are done. One continuous take if possible, from the first X:
+**The video's hero scene**, once the shots above are done. Film it in pieces: the coach's replies are long, and only
+the verdict sentence of each goes in the video.
 
-1. Stand on the X at about 7 ft, with the whole door in frame. **दरवाज़े की फ़ोटो** → Take Photo at 1×. It should say too close.
-2. Walk out to an X at **28–30 ft** and take another photo the same way. Answer «हाँ, 1× पर था», then «हाँ, बाहर है».
-   It should say it meets the guidance.
-3. Pull the tape from that X to the door and show the reading.
+1. Stand on an X at **8–9 ft**, level, with the whole door in frame. **दरवाज़े की फ़ोटो** → Take Photo at 1×. It should say
+   too close. It ends by asking whether the generator is outside: **don't answer**, just walk out.
+2. On an X at **30 ft**, take a photo with the Camera app at 1×. Then **दरवाज़े की फ़ोटो** → Photo Library, and pick it. Keep
+   the library grid off camera. It should say the distance counts only if the generator is outside.
+3. Say «हाँ, बाहर है». It should say it meets the guidance. It ends by asking the door's height: **stop there**.
+4. Pull the tape from that X to the door and show the reading.
 
-A Take Photo reads a little short and the verdict uses the low end of the error range, so 25 ft can read "borderline".
-That's the app being cautious, not a failure. Try the far spot once before the good take.
+If it mishears «हाँ, बाहर है», say it again, or take the far photo again and start from step 2.
 
 ## 4. Rating plate
 
@@ -69,7 +71,8 @@ the list in order, each line two or three times, at an everyday volume with the 
 with background noise. Ask anyone else before recording them; their recordings stay on the laptop too.
 
 - **Short answers:** हाँ। · नहीं। · हाँ, है। · नहीं है। · हाँ, हैं। · नहीं हैं। · पता नहीं। · शायद। · हाँ, बाहर है। ·
-  इनमें से कुछ नहीं। · नॉर्मल है। · घर से दूर। · घर की तरफ़। · हाँ, सही है।
+  हाँ, 1× पर था (say "एक एक्स"; synthetic voices were never heard correctly on this one) · इनमें से कुछ नहीं। · नॉर्मल है। ·
+  घर से दूर। · घर की तरफ़। · हाँ, सही है।
 - **Longer:** मेरा जनरेटर गैराज में चल रहा है, दरवाज़ा खुला है। · मैंने उसे बाहर रख दिया, घर से दूर। · पेट्रोल का एक
   टैंक कितनी देर चलता है? · दरवाज़ा साढ़े छह फीट ऊँचा है। · मुझे चक्कर आ रहे हैं।
 - **English, a few** (switch the page to English first): Yes. · No. · I don't know. · Yes, I have one.
