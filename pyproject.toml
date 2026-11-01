@@ -31,3 +31,5 @@ dev = [
 [tool.uv]
 # Supply-chain guard: resolve only releases at least two weeks older than the day dependencies were added.
 exclude-newer = "2026-10-14T04:00:00Z"
+# Exception (2026-10-30): certifi 2026.10.19 drops the compromised eMudhra root
+exclude-newer-package = { certifi = "2026-10-21T00:00:00Z" }
