@@ -102,7 +102,8 @@ model: "हाँ, बाहर है", "नहीं है", "इनमें
 the "no" late ("अलार्म नहीं है"), and that counts, but a "नहीं" that's only a tag at the end ("तार गिरे हैं, नहीं?")
 doesn't. What the model reads that way is read back first ("मैंने समझा कि जनरेटर बाहर, खुली जगह में है। क्या यह सही
 है?") and counts only on a plain yes. A question left unanswered is asked once more, with the words to answer in,
-then left for later.
+then left for later. A new door photo isn't an answer: it counts as saying nothing, and the coach asks afresh whether
+the generator is outside.
 
 Two things skip the model and get the emergency line at once, and nothing else: symptom words ("मुझे चक्कर आ रहे हैं",
 "I have a headache") and the carbon monoxide alarm heard sounding ("अलार्म बज रहा है", "the alarm is going off", "la

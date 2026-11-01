@@ -71,8 +71,8 @@ the list in order, each line two or three times, at an everyday volume with the 
 with background noise. Ask anyone else before recording them; their recordings stay on the laptop too.
 
 - **Short answers:** हाँ। · नहीं। · हाँ, है। · नहीं है। · हाँ, हैं। · नहीं हैं। · पता नहीं। · शायद। · हाँ, बाहर है। ·
-  हाँ, 1× पर था (say "एक एक्स"; synthetic voices were never heard correctly on this one) · इनमें से कुछ नहीं। · नॉर्मल है। ·
-  घर से दूर। · घर की तरफ़। · हाँ, सही है।
+  हाँ, 1× पर था (say "एक एक्स"; synthetic voices were never heard correctly on this one) · हाँ, वन एक्स पर था। ·
+  इनमें से कुछ नहीं। · नॉर्मल है। · घर से दूर। · घर की तरफ़। · हाँ, सही है।
 - **Longer:** मेरा जनरेटर गैराज में चल रहा है, दरवाज़ा खुला है। · मैंने उसे बाहर रख दिया, घर से दूर। · पेट्रोल का एक
   टैंक कितनी देर चलता है? · दरवाज़ा साढ़े छह फीट ऊँचा है। · मुझे चक्कर आ रहे हैं।
 - **English, a few** (switch the page to English first): Yes. · No. · I don't know. · Yes, I have one.

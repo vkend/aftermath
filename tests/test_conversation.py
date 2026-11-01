@@ -1,4 +1,5 @@
 import re
+from dataclasses import asdict
 
 import pytest
 
@@ -590,7 +591,7 @@ def test_a_photo_without_lens_data_is_given_as_if_at_1x_and_counts_on_a_plain_ye
     assert glimmer.prompts == []  # plain answers: no model
 
 
-@pytest.mark.parametrize("heard", ["हाँ, 1× पर था।", "हाँ", "जी हाँ, एक एक्स पर था"])
+@pytest.mark.parametrize("heard", ["हाँ, 1× पर था।", "हाँ", "जी हाँ, एक एक्स पर था", "हाँ, वन एक्स पर था"])
 def test_a_plain_hindi_yes_to_1x_lets_the_distance_count(heard):
     talk = asked("confirm-1x", language="hi")
     assert talk.reply(heard).said == ["meets-guidance"] and not talk.situation.lens_assumed
@@ -640,3 +641,129 @@ def test_before_anyone_said_where_the_generator_is_the_lens_is_asked_first_then_
 def test_a_yes_with_another_zoom_in_it_doesnt_confirm_1x(heard):
     talk = asked("confirm-1x", reading(), language="en" if heard.startswith("Yes") else "hi")
     assert talk.reply(heard).question == "confirm-1x" and talk.situation.lens_assumed  # asked again
+
+
+# A new door photo isn't a reply. Someone who moves the generator and measures again, without answering anything, is
+# still asked whether it's outside, and nothing they haven't said counts as said.
+NEAR, MIDDLE, FAR = (8.2, 7.7), (14.4, 13.6), (30.2, 28.5)  # a door photo's (feet, lowest feet)
+SAYS_OUTSIDE, MISHEARD = "हाँ, बाहर है", "वार है"  # what MMS made of the first, in the app's own voice on Nov 1
+
+
+def measuring(*readings, situation=Situation()):
+    talk = Conversation(Glimmer(*readings), language="hi", situation=situation)
+    talk.opening()
+    return talk
+
+
+def answers(situation):
+    """Everything known about the household, without the measurement."""
+    return {k: v for k, v in asdict(situation).items() if k not in ("measured_ft", "lowest_ft", "lens_assumed")}
+
+
+def test_moving_the_generator_and_measuring_again_never_stops_the_coach_asking_if_its_outside():
+    talk = measuring()
+    for door, placement in [(NEAR, "too close"), (MIDDLE, "too close"), (FAR, "if outside"), (FAR, "if outside")]:
+        reply = talk.reply("", door=door)
+        assert reply.question == "confirm-outside" and assess(talk.situation).placement == placement
+        assert reply.text.endswith(PHRASES["confirm-outside"]["hi"])  # asked plainly: nothing has gone unanswered
+    assert talk.reply(SAYS_OUTSIDE).said == ["meets-guidance"]
+
+
+@pytest.mark.parametrize("steps", [
+    [NEAR, FAR],  # as filmed
+    [NEAR, FAR, MISHEARD],  # it mishears, and they say it again
+    [NEAR, FAR, MISHEARD, FAR],  # it mishears, and they take the far photo again
+    [NEAR, FAR, FAR],  # a far retake
+    [NEAR, NEAR, FAR],  # a near retake
+    [NEAR, FAR, MISHEARD, MISHEARD, FAR],  # asked twice and left for later: a new photo asks afresh
+])
+def test_a_retake_or_a_mishearing_still_ends_on_the_verdict_without_the_model(steps):
+    talk = measuring()  # Glimmer has nothing to answer with: it mustn't be needed
+    for step in steps:
+        talk.reply(step) if isinstance(step, str) else talk.reply("", door=step)
+    assert talk.asked == "confirm-outside" and assess(talk.situation).placement == "if outside"
+    assert talk.reply(SAYS_OUTSIDE).said == ["meets-guidance"]
+    assert assess(talk.situation).placement == "meets the guidance" and talk.reader.prompts == []
+
+
+def test_a_question_goes_on_being_left_for_later_when_replies_dont_answer_it():
+    talk = measuring()
+    talk.reply("", door=FAR)
+    talk.reply(MISHEARD)
+    assert talk.asked == "confirm-outside"
+    talk.reply(MISHEARD)
+    assert talk.asked != "confirm-outside" and talk.situation.location is None
+
+
+@pytest.mark.parametrize("lens_assumed", [False, True])
+@pytest.mark.parametrize("before", [
+    Situation(), Situation(location="garage"), Situation(location="outdoors"),
+    Situation(symptoms=False, co_alarm=True, exhaust_toward_house=False, downed_line=False),
+    Situation(co_alarm=False, downed_line=True, burning_indoors=frozenset({"gas_oven"}), extreme_heat=True),
+])
+def test_a_new_photo_never_sets_or_clears_a_fact(before, lens_assumed):
+    talk = measuring(situation=before)
+    for door in (NEAR, FAR, FAR):
+        talk.reply("", door=door, lens_assumed=lens_assumed)
+        assert answers(talk.situation) == answers(before)
+        assert not talk.door_checked and not talk.lens_confirmed and not talk.unconfirmed
+
+
+def test_the_verdict_stays_if_outside_until_a_plain_yes_however_many_photos_come_in():
+    talk = measuring(reading("hi", generator_location="outdoors"))  # Glimmer reads the one long reply as outside
+    for said in ("", "शायद", MISHEARD, "मैंने उसे बाहर रख दिया, घर से दूर", ""):
+        talk.reply(said)
+        talk.reply("", door=FAR)
+        assert talk.situation.location is None and assess(talk.situation).placement == "if outside"
+        assert talk.asked == "confirm-outside"
+    assert talk.reply(SAYS_OUTSIDE).said == ["meets-guidance"] and talk.situation.location == "outdoors"
+
+
+def test_a_photo_during_a_read_back_confirms_nothing():
+    read = reading("hi", generator_location="outdoors")
+    talk = measuring(read, read)
+    talk.reply("", door=FAR)
+    assert talk.reply("मैंने उसे बाहर रख दिया, घर से दूर").question == "confirm"
+    assert talk.reply("", door=FAR).question == "confirm-outside"
+    assert talk.situation.location is None and not talk.unconfirmed
+    assert talk.reply("हाँ, सही है").question == "confirm"  # the read-back is over: it's read back again, not counted
+    assert talk.situation.location is None
+
+
+def test_a_generator_said_to_be_in_the_garage_is_still_asked_about_however_many_photos_come_in():
+    talk = measuring(situation=Situation(location="garage"))
+    for _ in range(3):
+        assert talk.reply("", door=FAR).question == "ask-moved-outside"
+        assert assess(talk.situation).placement == "never indoors" and talk.situation.location == "garage"
+    talk.reply("fhcc")
+    talk.reply("fhcc")
+    assert talk.asked != "ask-moved-outside"
+    assert talk.reply("", door=FAR).question == "ask-moved-outside"  # left for later, then a new photo asks afresh
+
+
+def test_a_new_photo_asks_about_its_own_lens_after_an_earlier_one_was_left_for_later():
+    talk = measuring()
+    talk.reply("", door=FAR, lens_assumed=True)
+    talk.reply("fhcc")
+    talk.reply("fhcc")
+    assert talk.asked == "confirm-outside" and assess(talk.situation).placement == "if at 1x"
+    assert talk.reply("", door=FAR, lens_assumed=True).question == "confirm-1x"
+
+
+@pytest.mark.parametrize("heard", UNCLEAR_HI)
+@pytest.mark.parametrize("rule", sorted(CLEARING))
+def test_after_a_new_photo_an_unclear_hindi_answer_still_takes_nothing_off_the_list(rule, heard):
+    _, read, cleared = CLEARING[rule]  # even if Glimmer reads it so
+    talk = asked(rule, read, read, language="hi")
+    talk.reply("", door=FAR)  # while it's being asked
+    assert not cleared(talk)
+    talk.reply(heard)
+    assert not cleared(talk)
+
+
+@pytest.mark.parametrize("rule", sorted(CLEARING_HI))
+def test_after_a_new_photo_a_plain_hindi_answer_still_takes_the_danger_off_the_list_without_the_model(rule):
+    talk = asked(rule, language="hi")
+    talk.reply("", door=FAR)
+    reply = talk.reply(CLEARING_HI[rule])
+    assert CLEARING[rule][2](talk) and not reply.pending

@@ -345,3 +345,22 @@ def test_the_page_gets_its_words_from_phrases_and_starts_with_the_same_hindi(cli
     for element, name in STARTS_IN_HINDI.items():
         shown = re.search(rf'id="{element}"[^>]*>([^<]*)<', html).group(1).strip()
         assert shown == PAGE["hi"][name], element
+
+
+def test_a_near_photo_then_a_far_one_with_its_lens_and_a_retake_end_on_the_verdict(tmp_path):
+    near, near_mask = door_photo(tmp_path / "near.jpg", 8.5, focal=False)  # Take Photo leaves the lens out
+    far, far_mask = door_photo(tmp_path / "far.jpg", 30)  # a Camera-app photo from Photo Library keeps it
+    models = Models(listener=FakeListener("हाँ, बाहर है"), voice=FakeVoice(), reader=FakeGlimmer(),
+                    segmenter=FakeSam(near_mask))
+    web = TestClient(create_app(models))
+    sid = web.post("/api/start?language=hi").json()["session"]
+    first = web.post(f"/api/door?session_id={sid}", content=near.read_bytes()).json()
+    assert first["placement"] == "too close" and first["text"].endswith(PHRASES["confirm-outside"]["hi"])
+    models.segmenter = FakeSam(far_mask)
+    for _ in range(2):  # the second is a retake
+        second = web.post(f"/api/door?session_id={sid}", content=far.read_bytes()).json()
+        assert second["placement"] == "if outside" and second["text"].endswith(PHRASES["confirm-outside"]["hi"])
+    recording = write_wav(tmp_path / "said.wav", 0.1 * np.sin(np.arange(16000) / 5), 16000).read_bytes()
+    turn = web.post(f"/api/talk?session_id={sid}", content=recording).json()
+    assert turn["more"] is False and turn["placement"] == "meets the guidance"
+    assert turn["door"]["feet"] == pytest.approx(30, abs=0.3)

@@ -14,7 +14,8 @@ A short answer to one of the coach's own questions is read here, without the mod
 "no hay" count, while a lone "se" (MMS's "sí", sometimes), "no sé" or "creo que sí" don't. What the model reads that
 would take a danger off the list is read back first ("Entendí que …, ¿es así?") and counts only on a plain yes,
 because the model can be wrong as well: given MMS's garbled "no sé", it once read "no fallen lines". A question left
-unanswered is asked once more, saying how to answer it, and then left for later.
+unanswered is asked once more, saying how to answer it, and then left for later. A new door photo isn't a reply: it
+sets no fact, and whether the generator is outside, and the lens, are asked afresh for it.
 
 Glimmer's answer to an open question is told to leave generators, carbon monoxide, power lines and health to the
 rules, never to call anything safe, and to send emergencies to 911; a check here drops an answer that says "safe".
@@ -432,7 +433,7 @@ def clearing(situation: Situation, name: str, value: object) -> bool:
 
 BAND_RULES = frozenset({"too-close", "borderline", "meets-guidance", "if-outside", "if-1x"})  # say the numbers
 DOOR_QUESTION = Advice("ask-door-height", Level.CHECK, ())
-LENS_QUESTION = Advice("confirm-1x", Level.CHECK, ("cdc-distance",))
+ABOUT_THE_PHOTO = frozenset({"confirm-1x", "confirm-outside", "ask-moved-outside"})  # asked afresh for each new photo
 HEIGHTS_IN = (60.0, 120.0)  # door heights outside this range are mishearings
 
 
@@ -526,7 +527,11 @@ class Conversation:
             self.situation = replace(self.situation, measured_ft=door[0], lowest_ft=door[1], lens_assumed=lens_assumed)
             self.said -= BAND_RULES  # a new measurement is said with its own numbers
             self.lens_confirmed = False
-            self.tries.pop(key(LENS_QUESTION), None)  # a new photo's lens is a new question
+            # A photo is a new measurement, not a reply. What it raises is asked afresh (the person may have moved the
+            # generator), and whatever was being asked hasn't gone unanswered.
+            self.tries = {k: n for k, n in self.tries.items() if k[0] not in ABOUT_THE_PHOTO}
+            if not heard.strip():
+                self.asking = None
         if complete or not heard.strip():
             return self._compose(facts, {})
         self.waiting = heard
