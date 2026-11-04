@@ -7,8 +7,9 @@ fails until it's reviewed again with the user. After a review, refresh the pins:
     uv run python tests/test_reviewed_hindi.py --pin
 
 The pins hold the user's review of Oct 29, 2026: review page ec5466828411 with its one change, three lines approved after
-it, then the lines for a photo without lens data, the Listen button and the read-back's shapes. index.html's Hindi is
-phrases.PAGE's (test_web checks the two match).
+it, then the lines for a photo without lens data, the Listen button and the read-back's shapes, and (Nov 4) the two
+lens buttons, the answers the reviewed lens question asks for, and the verdict «सीडीसी की सलाह के मुताबिक», a part of
+the reviewed meets line. index.html's Hindi is phrases.PAGE's (test_web checks the two match).
 """
 
 import ast

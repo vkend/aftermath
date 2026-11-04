@@ -195,7 +195,8 @@ def test_a_door_photo_with_no_lens_data_counts_only_once_the_person_says_it_was_
     assert first["refused"] is None and first["placement"] == "if at 1x"
     assert first["text"].startswith(PHRASES["if-1x"]["es"].split(".")[0])
     assert first["text"].endswith(PHRASES["confirm-1x"]["es"])
-    assert "lens-assumed" not in first["door"]["warnings"] and first["door"]["warnings"][0].startswith("Esta foto no")
+    assert first["door"]["warnings"] == []  # the lens note isn't repeated on the card: the headline and the coach say it
+    assert first["action"] == PHRASES["confirm-1x"]["es"]  # the card's action line is the question
     assert first["door"]["feet"] == pytest.approx(26 * 23 / 24, abs=0.1)  # read through 23 mm, not the 24 it was
     kept = json.loads((tmp_path / "kept" / "log.jsonl").read_text().splitlines()[-1])
     assert kept["lens_assumed"] is True and kept["focal"].startswith("assumed 23 mm")
@@ -326,11 +327,11 @@ def test_a_check_in_for_a_conversation_that_is_gone_starts_from_nothing():
 
 
 # The page starts in Hindi before its script runs: those words must be the reviewed ones in phrases.PAGE.
-STARTS_IN_HINDI = {"subtitle": "subtitle", "welcome-text": "welcome", "begin": "begin", "talk": "talk",
+STARTS_IN_HINDI = {"subtitle": "subtitle", "welcome-text": "welcome", "begin": "begin", "talk-label": "talk",
                    "door-label": "door", "plate-label": "plate", "advice-title": "adviceTitle", "not-911": "notNine11",
                    "checkin-banner": "checkinBanner", "tonight-title": "tonight", "time-label": "checkinTime",
                    "add-calendar": "addCalendar", "check-now": "checkNow", "note-label": "note", "share": "share",
-                   "preview-label": "preview", "listen": "listen"}
+                   "preview-label": "preview", "listen-label": "listen", "tap-yes": "lensYes", "tap-no": "lensNo"}
 
 
 def test_the_page_gets_its_words_from_phrases_and_starts_with_the_same_hindi(client):
@@ -364,6 +365,69 @@ def test_a_near_photo_then_a_far_one_with_its_lens_and_a_retake_end_on_the_verdi
     turn = web.post(f"/api/talk?session_id={sid}", content=recording).json()
     assert turn["more"] is False and turn["placement"] == "meets the guidance"
     assert turn["door"]["feet"] == pytest.approx(30, abs=0.3)
+
+
+def tapping(web, sid, answer, turn, question="confirm-1x"):
+    return web.post(f"/api/tap?session_id={sid}&question={question}&answer={answer}&turn={turn}")
+
+
+def test_the_1x_question_comes_with_two_buttons_and_a_tap_answers_it(tmp_path):
+    photo, mask = door_photo(tmp_path / "door.jpg", 26, focal=False)  # Take Photo leaves the lens out
+    models = Models(listener=FakeListener("हम्म"), voice=FakeVoice(), reader=FakeGlimmer(), segmenter=FakeSam(mask))
+    web = TestClient(create_app(models, keep=tmp_path / "kept"))
+    start = web.post("/api/start?language=hi").json()
+    sid = start["session"]
+    assert start["tap"] is None
+    first = web.post(f"/api/door?session_id={sid}", content=photo.read_bytes()).json()
+    assert first["placement"] == "if at 1x" and first["tap"] == "confirm-1x"
+    assert tapping(web, sid, "yes", first["turn"] - 1).status_code == 409  # an older reply's buttons
+    assert tapping(web, sid, "maybe", first["turn"]).status_code == 400
+    assert tapping(web, sid, "yes", first["turn"], question="confirm-outside").status_code == 409
+    yes = tapping(web, sid, "yes", first["turn"]).json()
+    assert yes["heard"] == "हाँ, 1× पर था" and yes["placement"] == "if outside" and yes["tap"] is None
+    assert yes["text"].endswith(PHRASES["confirm-outside"]["hi"]) and yes["audio"]
+    assert tapping(web, sid, "yes", first["turn"]).status_code == 409  # answered once
+    kept = json.loads((tmp_path / "kept" / "log.jsonl").read_text().splitlines()[-1])
+    assert (kept["kind"], kept["question"], kept["answer"], kept["file"]) == ("tap", "confirm-1x", "yes", None)
+
+
+def test_a_tap_on_no_drops_the_distance_and_asks_for_a_photo_at_1x(tmp_path):
+    from aftermath.phrases import LENS_RETAKE
+
+    photo, mask = door_photo(tmp_path / "door.jpg", 26, focal=False)
+    models = Models(listener=FakeListener("हम्म"), voice=FakeVoice(), reader=FakeGlimmer(), segmenter=FakeSam(mask))
+    web = TestClient(create_app(models))
+    sid = web.post("/api/start?language=en").json()["session"]
+    first = web.post(f"/api/door?session_id={sid}", content=photo.read_bytes()).json()
+    no = tapping(web, sid, "no", first["turn"]).json()
+    assert no["heard"] == "No" and no["placement"] == "not measured" and no["door"] is None
+    assert no["text"].startswith(LENS_RETAKE["en"]) and no["tap"] is None
+    again = web.post(f"/api/door?session_id={sid}", content=photo.read_bytes()).json()
+    assert again["tap"] == "confirm-1x" and again["turn"] > no["turn"]  # the new photo's own question
+
+
+def test_the_buttons_wait_while_the_model_reads_a_turn(tmp_path):
+    photo, mask = door_photo(tmp_path / "door.jpg", 26, focal=False)
+    models = Models(listener=FakeListener("Which button do I press for the photo, and where is it?"),
+                    voice=FakeVoice(), reader=FakeGlimmer(), segmenter=FakeSam(mask))
+    web = TestClient(create_app(models))
+    sid = web.post("/api/start?language=en").json()["session"]
+    web.post(f"/api/door?session_id={sid}", content=photo.read_bytes())
+    recording = write_wav(tmp_path / "said.wav", 0.1 * np.sin(np.arange(16000) / 5), 16000).read_bytes()
+    first = web.post(f"/api/talk?session_id={sid}", content=recording).json()
+    assert first["more"] is True and first["tap"] is None
+    assert tapping(web, sid, "yes", first["turn"]).status_code == 409
+    rest = web.post(f"/api/talk/more?session_id={sid}").json()
+    assert rest["placement"] == "never indoors"  # FakeGlimmer reads a garage; the lens no longer matters
+
+
+def test_the_lens_buttons_say_the_answers_the_coach_asks_for():
+    from aftermath.phrases import AGAIN, PAGE
+
+    for language, page in PAGE.items():
+        again = AGAIN["confirm-1x"][language].lower()
+        for label in (page["lensYes"], page["lensNo"]):
+            assert f"«{label.lower()}»" in again or f"“{label.lower()}”" in again, (language, label)
 
 
 def test_with_warm_the_models_load_and_the_openings_are_spoken_before_anyone_asks(tmp_path):

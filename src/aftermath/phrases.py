@@ -10,6 +10,7 @@ Spanish, are this app's words.
 """
 
 import math
+import re
 
 from .rules import Advice
 
@@ -545,6 +546,38 @@ def ask(advice: Advice, language: str = "es", again: bool = False) -> str:
     return say(advice, language)
 
 
+# The verdict card's one line under its headline, what to do, in the coach's own words: a part of the headline's
+# line (which sentence, then the clause after the first "after" or before the first "before"), or the open question
+# itself. So the card says nothing the coach doesn't, and nothing here is new wording.
+ACTION = {
+    "move-outside-now": {"en": (1,), "es": (1,), "hi": (1,)},
+    "away-from-openings": {"en": (1,), "es": (2,), "hi": (1,)},
+    "too-close": {"en": (1, ": "), "es": (2,), "hi": (1, ": ")},
+    "borderline": {"en": (1, ": "), "es": (1, ": "), "hi": (1, ": ")},
+    "meets-guidance": {"en": (2, None, ", and"), "es": (3, None, ";"), "hi": (2, None, ";")},
+    "if-outside": "confirm-outside",
+    "if-1x": "confirm-1x",
+}
+# Where a sentence ends. The danda is written by its code point, so every Hindi string in this file is a reviewed line.
+SENTENCE_BREAK = re.compile(rf"(?<=[.?!{chr(0x964)}])\s+")
+
+
+def action(advice: Advice, language: str = "es") -> str:
+    """The verdict card's action line for this headline (see ACTION), or "" if it has none."""
+    spec = ACTION.get(advice.rule)
+    if spec is None:
+        return ""
+    if isinstance(spec, str):
+        return PHRASES[spec][language]
+    index, after, before = (*spec[language], None, None)[:3]
+    sentence = SENTENCE_BREAK.split(say(advice, language))[index]
+    if after:
+        sentence = sentence.split(after, 1)[1]
+    if before:
+        sentence = sentence.split(before, 1)[0] + sentence[-1]
+    return sentence[:1].upper() + sentence[1:]
+
+
 def say(advice: Advice, language: str = "es") -> str:
     """The advice in the person's language."""
     if advice.rule == "measure-distance" and advice.values.get("outdoors"):
@@ -786,6 +819,8 @@ PAGE = {
         "share": "परिवार को सारांश भेजें",
         "preview": "सारांश देखें (अंग्रेज़ी में)",
         "listen": "सुनें",
+        "lensYes": "हाँ, 1× पर था",
+        "lensNo": "नहीं",
         "copied": "सारांश कॉपी हो गया: इसे किसी मैसेज में चिपकाएँ।",
         "checkinWelcome": "जनरेटर की जाँच का समय: तीन छोटे सवाल।",
         "startCheckin": "जाँच शुरू करें",
@@ -795,7 +830,7 @@ PAGE = {
             "against the house": "घर के बहुत पास",
             "too close": "बहुत पास",
             "borderline": "सीमा पर",
-            "meets the guidance": "सलाह के मुताबिक",
+            "meets the guidance": "सीडीसी की सलाह के मुताबिक",
             "if outside": "सिर्फ़ अगर बाहर है",
             "if at 1x": "सिर्फ़ अगर कैमरा 1× पर था",
             "not measured": "अभी नापा नहीं गया",
@@ -830,6 +865,8 @@ PAGE = {
         "share": "Send the summary to your family",
         "preview": "See the summary",
         "listen": "Listen",
+        "lensYes": "Yes, at 1×",
+        "lensNo": "No",
         "copied": "Summary copied: paste it into a message.",
         "checkinWelcome": "Time to check on the generator: three quick questions.",
         "startCheckin": "Start the check-in",
@@ -839,7 +876,7 @@ PAGE = {
             "against the house": "Too close to the house",
             "too close": "Too close",
             "borderline": "Borderline",
-            "meets the guidance": "Meets the guidance",
+            "meets the guidance": "Meets the CDC's guidance",
             "not measured": "Not measured yet",
             "if outside": "Only if it's outside",
             "if at 1x": "Only if the camera was at 1×",
@@ -874,6 +911,8 @@ PAGE = {
         "share": "Enviar el resumen a su familia",
         "preview": "Ver el resumen (en inglés)",
         "listen": "Escuchar",
+        "lensYes": "Sí, en 1×",
+        "lensNo": "No",
         "copied": "Resumen copiado: péguelo en un mensaje.",
         "checkinWelcome": "Es hora de revisar el generador: tres preguntas rápidas.",
         "startCheckin": "Empezar la revisión",

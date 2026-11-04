@@ -650,6 +650,51 @@ def test_a_question_about_the_lens_asked_twice_is_left_and_the_distance_still_do
     assert "meets-guidance" not in [a.rule for a in assess(talk.situation).advice]
 
 
+# The page also shows the lens question as two buttons. A tap is a plain answer: it does what saying it plainly does.
+PLAINLY = {True: {"hi": "हाँ, 1× पर था", "en": "Yes, at 1×", "es": "Sí, en 1×"},
+           False: {"hi": "नहीं", "en": "No", "es": "No"}}
+
+
+@pytest.mark.parametrize("language", ["hi", "en", "es"])
+@pytest.mark.parametrize("yes", [True, False])
+def test_a_tap_on_a_lens_button_does_what_saying_it_plainly_does(language, yes):
+    tapped, spoken = asked("confirm-1x", language=language), asked("confirm-1x", language=language)
+    by_tap, by_voice = tapped.tap("confirm-1x", yes), spoken.reply(PLAINLY[yes][language])
+    assert (by_tap.text, by_tap.said, by_tap.question) == (by_voice.text, by_voice.said, by_voice.question)
+    assert tapped.situation == spoken.situation and tapped.lens_confirmed is spoken.lens_confirmed is yes
+    assert tapped.reader.prompts == spoken.reader.prompts == []  # neither needs the model
+    assert by_tap.said == (["meets-guidance"] if yes else []) and (tapped.situation.lowest_ft is None) is not yes
+
+
+def test_a_tap_before_anyone_said_where_the_generator_is_still_leaves_that_to_ask():
+    talk = Conversation(Glimmer(), language="hi")
+    talk.opening()
+    assert talk.reply("", door=(26.0, 24.5), lens_assumed=True).question == "confirm-1x"
+    then = talk.tap("confirm-1x", True)
+    assert then.said == ["if-outside"] and then.question == "confirm-outside" and talk.situation.location is None
+
+
+def test_a_tap_answers_only_the_question_being_asked():
+    talk = asked("confirm-outside")
+    for rule in ("confirm-1x", "confirm-outside"):  # not being asked; and "is it outside?" has no buttons
+        with pytest.raises(ValueError):
+            talk.tap(rule, True)
+    assert talk.asked == "confirm-outside" and talk.situation == BEFORE["confirm-outside"]
+    talk = asked("confirm-1x", language="hi")
+    talk.tap("confirm-1x", True)
+    with pytest.raises(ValueError):  # answered: the next question is another one
+        talk.tap("confirm-1x", False)
+    assert talk.lens_confirmed and talk.situation.lowest_ft is not None
+
+
+def test_a_tap_while_the_model_reads_a_turn_answers_nothing():
+    talk = asked("confirm-1x", reading(), language="en")
+    assert talk.quick("Which button do I press for the photo?").pending
+    with pytest.raises(ValueError):
+        talk.tap("confirm-1x", True)
+    assert talk.situation.lens_assumed and not talk.lens_confirmed
+
+
 def test_too_close_on_an_assumed_lens_is_too_close_without_asking():
     talk = Conversation(Glimmer(), language="en", situation=Situation(location="outdoors"), door_checked=True)
     reply = talk.reply("", door=(12.0, 11.3), lens_assumed=True)

@@ -3,8 +3,8 @@ import re
 import pytest
 
 from aftermath.guidance import SOURCES
-from aftermath.phrases import (AGAIN, DONE, DOOR_NOTES, LATER, NOT_CAUGHT, PHRASES, PLATE_CHECK, PLATE_NOTES,
-                                PLATE_WRONG, TAKE_PHOTO, UNDERSTOOD, distance, say)
+from aftermath.phrases import (ACTION, AGAIN, DONE, DOOR_NOTES, LATER, NOT_CAUGHT, PHRASES, PLATE_CHECK,
+                                PLATE_NOTES, PLATE_WRONG, TAKE_PHOTO, UNDERSTOOD, action, distance, say)
 from aftermath.rules import AGAINST_HOUSE, BURNING, ENCLOSED, Level, Situation, assess, band
 
 
@@ -157,6 +157,41 @@ def test_the_headline_is_the_verdict_on_placement_whatever_else_comes_first():
     assert result.advice[0].rule != "meets-guidance" and result.headline.rule == "meets-guidance"
     assert assess(Situation(location="garage")).headline.rule == "move-outside-now"
     assert assess(Situation()).headline.rule == "measure-distance"
+
+
+# Every headline the verdict card can show, as assess gives it.
+HEADLINES = [Situation(location="garage"), Situation(location="porch"), Situation(measured_ft=10, lowest_ft=9.4),
+             Situation(location="outdoors", measured_ft=19, lowest_ft=17.9),
+             Situation(location="outdoors", measured_ft=30.2, lowest_ft=28.5),
+             Situation(location="outdoors", measured_ft=10, lowest_ft=9.4), Situation(measured_ft=30.2, lowest_ft=28.5),
+             Situation(measured_ft=28.9, lowest_ft=27.3, lens_assumed=True), Situation()]
+
+
+@pytest.mark.parametrize("language", ["hi", "en", "es"])
+def test_the_cards_action_line_is_part_of_what_the_coach_says(language):
+    """The line under the verdict's headline is a part of the headline's own line (first letter capitalised, and the
+    clause given its sentence's end mark), or the question it leaves open: no new wording."""
+    seen = set()
+    for situation in HEADLINES:
+        headline = assess(situation).headline
+        line = action(headline, language)
+        seen.add(headline.rule)
+        if headline.rule not in ACTION:
+            assert line == ""
+        elif isinstance(ACTION[headline.rule], str):
+            assert line == PHRASES[ACTION[headline.rule]][language]
+        else:
+            assert line and line[1:-1] in say(headline, language) and line[0].lower() in say(headline, language).lower()
+    assert set(ACTION) <= seen
+
+
+def test_the_hindi_action_lines_are_the_approved_ones():
+    """As approved on Nov 4 (through the coordinating session): parts of the reviewed lines."""
+    lines = {headline.rule: action(headline, "hi") for headline in (assess(s).headline for s in HEADLINES)}
+    assert lines["too-close"] == "उसे किसी भी दरवाज़े, खिड़की या रोशनदान से 20 फीट (6.1 m) से ज़्यादा दूर ले जाएँ।"
+    assert lines["borderline"] == "हो सके तो उसे और दूर ले जाएँ, 25 फीट (7.6 m) से भी आगे।"
+    assert lines["meets-guidance"] == "फिर भी जितना दूर, उतना अच्छा।"
+    assert lines["if-outside"] == PHRASES["confirm-outside"]["hi"] and lines["if-1x"] == PHRASES["confirm-1x"]["hi"]
 
 
 def test_a_measurement_while_the_generator_is_inside_asks_whether_it_was_moved():

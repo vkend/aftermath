@@ -198,22 +198,46 @@ def measure(photo: str | Path, segmenter: Segmenter, leaf_height_in: float = LEA
     return reading
 
 
-def overlay(photo: str | Path, reading: DoorReading, out: Path, label: bool = True) -> Path:
+def thick(edge: np.ndarray, r: int) -> np.ndarray:
+    """``edge`` grown by ``r`` pixels each way (a square brush)."""
+    wide = edge.copy()
+    for d in range(1, r + 1):
+        wide[:, d:] |= edge[:, :-d]
+        wide[:, :-d] |= edge[:, d:]
+    tall = wide.copy()
+    for d in range(1, r + 1):
+        tall[d:] |= wide[:-d]
+        tall[:-d] |= wide[d:]
+    return tall
+
+
+def overlay(photo: str | Path, reading: DoorReading, out: Path, label: bool = True, longest: int | None = None) -> Path:
     """The photo with the door SAM 3.1 found outlined and the measured span drawn, to check a reading by eye, and
-    the distance written on it unless ``label`` is False."""
+    the distance written on it unless ``label`` is False. With ``longest``, the photo is first scaled down to that many
+    pixels on its longer side, as the phone shows it small. The outline is yellow on a darkened edge, so it shows on a
+    white door too."""
     with tempfile.TemporaryDirectory() as tmp:
         with Image.open(readable(Path(photo), Path(tmp))) as raw:
             image = ImageOps.exif_transpose(raw).convert("RGB")
-    draw = ImageDraw.Draw(image)
+    scale = min(1.0, longest / max(image.size)) if longest else 1.0
+    if scale < 1:
+        image = image.resize((round(image.width * scale), round(image.height * scale)), Image.Resampling.LANCZOS)
+    brush = max(1, max(image.size) // 400)
     if reading.mask is not None:
         mask = reading.mask
+        if mask.shape != (image.height, image.width):
+            mask = np.array(Image.fromarray(mask).resize(image.size, Image.Resampling.NEAREST))
         inner = np.pad(mask, 1)
         edge = mask & ~(inner[2:, 1:-1] & inner[:-2, 1:-1] & inner[1:-1, 2:] & inner[1:-1, :-2])
-        ys, xs = np.nonzero(edge)
-        draw.point(list(zip(xs.tolist(), ys.tolist())), fill=(255, 210, 0))
+        pixels = np.array(image)
+        shade = thick(edge, brush + max(1, brush // 2))
+        pixels[shade] = (pixels[shade] * 0.35).astype(np.uint8)
+        pixels[thick(edge, brush)] = (255, 210, 0)
+        image = Image.fromarray(pixels)
+    draw = ImageDraw.Draw(image)
     if "span" in reading.values:
-        column, top, bottom = reading.values["span"]
-        draw.line([(column, top), (column, bottom)], fill=(255, 0, 0), width=max(3, image.width // 300))
+        column, top, bottom = (v * scale for v in reading.values["span"])
+        draw.line([(column, top), (column, bottom)], fill=(255, 0, 0), width=max(3, image.width // 300, 2 * brush))
     if label:
         text = (f"{reading.feet:.1f} ft ({reading.lowest_ft:.1f}–{reading.highest_ft:.1f})" if reading.feet
                 else f"not measured: {reading.refused}")

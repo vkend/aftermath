@@ -15,7 +15,8 @@ A short answer to one of the coach's own questions is read here, without the mod
 would take a danger off the list is read back first ("Entendí que …, ¿es así?") and counts only on a plain yes,
 because the model can be wrong as well: given MMS's garbled "no sé", it once read "no fallen lines". A question left
 unanswered is asked once more, saying how to answer it, and then left for later. A new door photo isn't a reply: it
-sets no fact, and whether the generator is outside, and the lens, are asked afresh for it.
+sets no fact, and whether the generator is outside, and the lens, are asked afresh for it. The lens question is also
+offered as two buttons on the page, and a tap on one is a plain answer.
 
 Glimmer's answer to an open question is told to leave generators, carbon monoxide, power lines and health to the
 rules, never to call anything safe, and to send emergencies to 911; a check here drops an answer that says "safe".
@@ -440,6 +441,9 @@ def clearing(situation: Situation, name: str, value: object) -> bool:
 BAND_RULES = frozenset({"too-close", "borderline", "meets-guidance", "if-outside", "if-1x"})  # say the numbers
 DOOR_QUESTION = Advice("ask-door-height", Level.CHECK, ())
 ABOUT_THE_PHOTO = frozenset({"confirm-1x", "confirm-outside", "ask-moved-outside"})  # asked afresh for each new photo
+# Questions the page also offers as two buttons, a yes and a no, while they're asked: MMS never heard the yes to "was
+# the camera at 1×?" from synthetic voices (0 of 24, Nov 1). A tap is a plain answer.
+TAPPED = frozenset({"confirm-1x"})
 HEIGHTS_IN = (60.0, 120.0)  # door heights outside this range are mishearings
 
 
@@ -496,12 +500,14 @@ class Conversation:
         self.asking = assess(self.situation).headline
         return f"{HELLO[self.language]} {ask(self.asking, self.language)}"
 
-    def quick(self, heard: str, door: tuple[float, float] | None = None, lens_assumed: bool = False) -> Reply:
+    def quick(self, heard: str, door: tuple[float, float] | None = None, lens_assumed: bool = False,
+              tapped: Answer | None = None) -> Reply:
         """The part of the reply that needs no model, said at once: the emergency line for symptom words, a danger
         for a dangerous place, or the whole reply to a short answer. ``pending`` says whether the model still has to
         read the turn (call ``finish``). ``door`` is a door measurement, (feet, lowest feet), taken from where the
         generator stands; until the generator is known to be outside, it counts only if it is. ``lens_assumed``
-        says the photo didn't record its lens: the measurement then counts only once the person says it was 1×."""
+        says the photo didn't record its lens: the measurement then counts only once the person says it was 1×.
+        ``tapped`` is the answer from a tap on one of the page's buttons (``tap``), in place of reading ``heard``."""
         self.turn, self.unanswered, self.retake = [], None, False
         sounding, sick = says_alarm(heard, self.asked), says_symptoms(heard)
         if sounding or sick:  # the alarm is sounding, or someone may be poisoned: only the emergency, now
@@ -514,7 +520,7 @@ class Conversation:
         facts = {"generator_location": place} if place else {}
         complete = bool(place) and len(words_of(heard)) <= 4
         question = self._question()
-        answer = read_answer(heard, question) if question is not None else None
+        answer = tapped or (read_answer(heard, question) if question is not None else None)
         if answer is not None:
             value = answer.of(question)
             if value is not None and (answer.plain or not question.clears(value)):
@@ -598,6 +604,13 @@ class Conversation:
         rest = self.finish()
         return Reply(text=" ".join(part for part in (first.text, rest.text) if part), said=first.said + rest.said,
                      question=rest.question, heard={**first.heard, **rest.heard})
+
+    def tap(self, rule: str, yes: bool) -> Reply:
+        """A tap on one of the page's two buttons for the question being asked (one of ``TAPPED``): a plain yes or
+        no, as if said plainly, with nothing else in it for the model to read."""
+        if rule not in TAPPED or self.asked != rule or self.waiting is not None:
+            raise ValueError(f"{rule} isn't being asked")
+        return self.quick("", tapped=Answer("yes" if yes else "no", plain=True, bare=True))
 
     def plate_read_back(self, readable: bool) -> None:
         """The coach has just read a rating plate back ("¿Es correcto?"), or said it couldn't read one. Either way the

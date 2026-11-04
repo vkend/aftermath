@@ -22,7 +22,7 @@ function labels() {
   $("subtitle").textContent = t.subtitle;
   $("welcome-text").textContent = checkinFor ? t.checkinWelcome : t.welcome;
   $("begin").textContent = checkinFor ? t.startCheckin : t.begin;
-  $("talk").textContent = recorder ? t.stop : t.talk;
+  $("talk-label").textContent = recorder ? t.stop : t.talk;
   $("door-label").textContent = t.door;
   $("plate-label").textContent = t.plate;
   $("advice-title").textContent = t.adviceTitle;
@@ -36,35 +36,115 @@ function labels() {
   $("note-label").textContent = t.note;
   $("share").textContent = t.share;
   $("preview-label").textContent = t.preview;
-  $("listen").textContent = t.listen || "▶";
+  $("listen-label").textContent = t.listen;
+  $("tap-yes").textContent = t.lensYes;
+  $("tap-no").textContent = t.lensNo;
   document.querySelectorAll(".language").forEach((b) => b.classList.toggle("chosen", b.dataset.language === language));
 }
 
-function status(message) { $("status").textContent = message || ""; }
+// The line under the buttons: what the page is waiting for (with a spinner), or what went wrong.
+function status(message, waiting = false) {
+  $("status").textContent = message || "";
+  $("status").classList.toggle("waiting", Boolean(message) && waiting);
+}
 
+// The conversation so far. The latest turn is in the reply box above, so the list shows the turns before it.
 function say(who, text) {
   if (!text) return;
   const item = document.createElement("li");
-  item.className = who;
+  item.className = `${who} current`;
   item.textContent = text;
   $("log").appendChild(item);
-  $("conversation").hidden = false;
+}
+function turnOver() {
+  $("log").querySelectorAll(".current").forEach((item) => item.classList.remove("current"));
 }
 
-// The coach's latest reply, shown by the buttons, where the person is looking: after a photo the page comes back
-// from the camera at the buttons, and a refusal said only in the conversation below was missed (Oct 29).
-function showReply(text, refused, more) {
+// A text's sentences (each ends in . ? ! or । before a space or the end).
+function sentenceList(text) {
+  const out = [];
+  let start = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    if (".?!।".includes(text[i]) && (i + 1 === text.length || /\s/.test(text[i + 1]))) {
+      out.push(text.slice(start, i + 1).trim());
+      start = i + 1;
+    }
+  }
+  if (text.slice(start).trim()) out.push(text.slice(start).trim());
+  return out;
+}
+
+// A text's first sentence and the rest ("" if it has one sentence).
+function sentences(text) {
+  const list = sentenceList(text || "");
+  return [list[0] || "", list.slice(1).join(" ")];
+}
+
+// What a long reply shows before "…" opens the rest (the voice says it all): its open question, from the last
+// question on, unless the card above already asks it; otherwise its first sentence. "" to show it whole.
+function brief(text, asked) {
+  const list = sentenceList(text);
+  if (text.length <= 110 || list.length < 2) return "";
+  let last = -1;
+  list.forEach((sentence, i) => { if (sentence.endsWith("?")) last = i; });
+  const question = last >= 0 ? list.slice(last).join(" ") : "";
+  const shown = question && !(asked && question.includes(asked)) ? question : list[0];
+  return shown.length < text.length ? shown : "";
+}
+
+// The coach's latest reply, just under the verdict and above the buttons: a refusal said only in the conversation
+// further down was missed (Oct 29). A long one is folded (see brief). In an emergency it's shown whole, its first
+// sentence (get to fresh air, call 911) leading in bold, with a button that calls 911.
+let replyFull = "";
+function showReply(text, refused, emergency, more, asked) {
   if (!text) return;
-  const box = $("reply");
-  $("reply-text").textContent = more && !box.hidden ? `${$("reply-text").textContent} ${text}` : text;
+  const box = $("reply"), shown = $("reply-text");
+  replyFull = more && !box.hidden ? `${replyFull} ${text}` : text;
+  if (emergency) {
+    const [first, rest] = sentences(replyFull);
+    shown.replaceChildren(Object.assign(document.createElement("strong"), { className: "lead", textContent: first }),
+      rest ? ` ${rest}` : "");
+  } else {
+    const short = refused ? "" : brief(replyFull, asked);
+    shown.replaceChildren(short || replyFull);
+    if (short) {
+      const open = Object.assign(document.createElement("button"), { className: "more", textContent: "…" });
+      open.setAttribute("aria-expanded", "false");
+      open.addEventListener("click", () => shown.replaceChildren(replyFull));
+      shown.append(" ", open);
+    }
+  }
   box.classList.toggle("refused", Boolean(refused));
+  box.classList.toggle("emergency", Boolean(emergency));
+  $("call").hidden = !emergency;
   box.hidden = false;
 }
 
-// Brought into view once the page around it has changed (the verdict card above it grows with the photo's outline).
-function reveal() {
-  if ($("reply").hidden) return;
-  requestAnimationFrame(() => $("reply").scrollIntoView({ behavior: "smooth", block: "nearest" }));
+// After a reply, the verdict's headline goes to the top of the screen, with the reply under it. A refused photo leaves
+// the verdict as it was, and an emergency is said in the reply, so then the reply goes to the top instead.
+function reveal(urgent) {
+  const banner = $("checkin-banner");
+  const target = urgent ? $("reply") : banner.hidden ? $("verdict") : banner;
+  if (target.hidden) return;
+  requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+// Under the photo, the verdict's explanation: its first sentence, and the rest and the measurement's limits a tap
+// away. When the reply just below says it already, only the limits are left here. (The explanation is also in the
+// advice list further down, with its sources.)
+function explain(verdict, limits, said) {
+  const [first, rest] = sentences(said ? limits : verdict);
+  const more = said ? "" : limits;
+  const folded = Boolean(rest || more);
+  $("verdict-text").hidden = folded || !first;
+  $("verdict-text").textContent = folded ? "" : first;
+  $("verdict-more").hidden = !folded;
+  $("verdict-more").open = false;
+  $("verdict-more").classList.toggle("limits", said);
+  $("verdict-first").textContent = first;
+  $("verdict-rest").textContent = rest;
+  $("limits").textContent = more;
+  $("limits").hidden = !more;
 }
 
 // Replies queue up, so a second part waits for the first to finish instead of cutting it off. If the phone won't
@@ -91,28 +171,55 @@ function play(audio) {
 }
 player.addEventListener("ended", next);
 
-function render(data, more = false) {
+// A question that's easy to mishear ("was the camera at 1×?") also gets two buttons, shown only with the reply that
+// asks it. A tap is a plain answer to that reply's question; the laptop ignores a tap on an older reply's buttons.
+let tapping = null;
+function choices(data) {
+  tapping = data.tap ? { question: data.tap, turn: data.turn } : null;
+  $("choices").hidden = !tapping;
+}
+function tap(answer) {
+  if (!tapping) return;
+  const { question, turn } = tapping;
+  post(`/api/tap?session_id=${session}&question=${question}&answer=${answer}&turn=${turn}`, null,
+    TEXT[language].thinking);
+}
+$("tap-yes").addEventListener("click", () => tap("yes"));
+$("tap-no").addEventListener("click", () => tap("no"));
+
+function render(data, more = false, scroll = true) {
   const t = TEXT[language];
+  const emergency = data.advice.some((a) => a.level === "emergency");
+  const urgent = Boolean(data.refused) || emergency;
+  if (!more) turnOver();
   if (data.heard !== undefined) say("person", data.heard || "…");
   say("coach", data.text);
-  showReply(data.text, data.refused, more);
+  $("conversation").hidden = !$("log").querySelector("li:not(.current)");
+  if (!more) { // what the coach heard, above its answer
+    $("heard-text").textContent = data.heard ? `«${data.heard}»` : "";
+    $("reply-heard").hidden = !data.heard;
+  }
+  showReply(data.text, data.refused, emergency, more, data.action);
+  choices(data);
   play(data.audio);
 
   const card = $("verdict");
   card.hidden = false;
   card.className = `card ${data.level}`;
   $("verdict-title").textContent = t.placement[data.placement] || data.placement;
-  $("verdict-text").textContent = data.verdict;
+  $("action").textContent = data.action || "";
+  $("action").hidden = !data.action;
   const door = data.door;
-  $("measurement").hidden = !door;
+  for (const id of ["feet", "range", "outline"]) $(id).hidden = !door;
+  $("warnings").hidden = !door || !door.warnings.length;
   if (door) {
-    $("feet").textContent = `${t.about} ${door.feet} ft (${(door.feet * 0.3048).toFixed(1)} m)`;
+    $("feet").textContent = `${t.about} ${door.feet} ft (${door.metres} m)`;
     $("range").textContent = t.between.replace("{lowest}", door.lowest).replace("{highest}", door.highest);
     $("warnings").replaceChildren(...door.warnings.map((w) => Object.assign(document.createElement("li"), { textContent: w })));
-    $("limits").textContent = door.limits;
   }
+  explain(data.verdict, door ? door.limits : "", replyFull.includes(data.verdict));
   if (data.outline && !data.refused) { // a refused photo leaves the card on the last one measured
-    $("outline").onload = reveal; // it pushes the reply down as it loads
+    $("outline").onload = () => { if (scroll && urgent) reveal(urgent); }; // above the reply, it pushes it down
     $("outline").src = data.outline;
   }
 
@@ -137,11 +244,12 @@ function render(data, more = false) {
   $("advice-section").hidden = data.advice.length === 0;
   $("checkin-banner").hidden = !data.checkin;
   refreshSummary().catch(() => {});
-  reveal();
+  if (scroll) reveal(urgent);
 }
 
 async function post(path, body, waiting) {
-  status(waiting);
+  status(waiting, true);
+  $("choices").hidden = true; // whatever this brings, the buttons belong to the reply before it
   document.querySelectorAll("#actions button, #actions .button").forEach((b) => b.classList.add("busy"));
   try {
     let response = await fetch(path, { method: "POST", body });
@@ -160,6 +268,7 @@ async function post(path, body, waiting) {
   } catch (error) {
     status(TEXT[language].failed);
     $("status").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    $("choices").hidden = !tapping; // nothing new came back: the last reply's buttons still answer it
     console.error(error);
   } finally {
     document.querySelectorAll("#actions button, #actions .button").forEach((b) => b.classList.remove("busy"));
@@ -186,7 +295,7 @@ async function begin() {
   const response = await fetch(path, { method: "POST" });
   const data = await response.json();
   session = data.session;
-  render(data);
+  render(data, false, false); // the greeting: the page stays at the top, by the language buttons
   $("tonight").hidden = false;
 }
 

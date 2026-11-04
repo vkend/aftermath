@@ -33,10 +33,10 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .checkin import Record, calendar, summary
-from .conversation import Conversation
-from .door import ERROR, DoorReading, measure, overlay, readable
+from .conversation import TAPPED, Conversation
+from .door import ERROR, FOOT, DoorReading, measure, overlay, readable
 from .guidance import SOURCES
-from .phrases import PAGE, door_note, plate_read, read_back, say
+from .phrases import PAGE, action, door_note, plate_read, read_back, say
 from .plate import Plate, read_plate
 from .rules import Situation, assess
 
@@ -46,6 +46,7 @@ HEIC = (b"ftypheic", b"ftypheix", b"ftypmif1", b"ftyphevc")  # bytes 4–12 of a
 MOMENT = {"es": "Un momento.", "en": "One moment.", "hi": "एक पल।"}
 VOICED = 256  # spoken lines kept in memory
 LANGUAGES = ("hi", "en", "es")
+TAP_LABELS = {"confirm-1x": {"yes": "lensYes", "no": "lensNo"}}  # each tappable question's buttons, in phrases.PAGE
 
 
 @dataclass
@@ -111,6 +112,7 @@ class Session:
     checked_at: float | None = None  # when the latest check-in began
     before: Situation | None = None  # the situation it began from
     lost: bool = False  # it began from nothing: the conversation it came from was gone
+    replies: int = 0  # the coach's replies so far: a tap answers the question of the reply it was shown with
 
 
 def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
@@ -182,22 +184,27 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
         return url
 
     def state(s: Session) -> dict:
-        """What the page shows besides the reply: the verdict on placement, the measurement, and the sources. The
+        """What the page shows besides a new reply: the verdict on placement, the measurement, the sources, and the
+        question its buttons answer, if the reply asked one of those (``tap``, with the reply's number ``turn``). The
         distance is the conversation's, which follows the door height the person gives."""
         talk, language = s.talk, s.talk.language
+        s.replies += 1
+        tap = talk.asked if talk.asked in TAPPED and talk.waiting is None else None  # not while the model reads
         result, feet = assess(talk.situation), talk.situation.measured_ft
         door = None
         if s.door is not None and feet is not None:
             height = door_note("door-height-given" if talk.door_checked else "door-height-assumed", language,
                                inches=talk.door_in)
-            door = {"feet": round(feet, 1), "lowest": round(talk.situation.lowest_ft, 1),
-                    "highest": round(feet / (1 - ERROR), 1), "error": ERROR, "door_in": talk.door_in,
+            door = {"feet": round(feet, 1), "metres": round(feet * FOOT, 1),  # as the coach's words give them
+                    "lowest": round(talk.situation.lowest_ft, 1), "highest": round(feet / (1 - ERROR), 1),
+                    "error": ERROR, "door_in": talk.door_in,
                     "limits": f"{height} {door_note('error-limits', language, error=ERROR)}",
                     "warnings": [door_note(w, language, tilt=s.door.values.get("tilt_deg", 0))
-                                 for w in s.door.warnings]}
+                                 for w in s.door.warnings if w != "lens-assumed"]}  # the headline and coach say it
         return {"placement": result.placement, "verdict": say(result.headline, language),
+                "action": action(result.headline, language),
                 "level": result.headline.level.name.lower(), "door": door, "language": language,
-                "checkin": bool(talk.checkin), "due": s.due,
+                "checkin": bool(talk.checkin), "due": s.due, "tap": tap, "turn": s.replies,
                 "advice": [{"rule": a.rule, "level": a.level.name.lower(), "text": say(a, language),
                             "sources": [{"publisher": SOURCES[i].publisher, "url": SOURCES[i].url,
                                          "quote": SOURCES[i].quote, "language": SOURCES[i].language}
@@ -276,6 +283,30 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
 
         return await models_thread.run(work)
 
+    @app.post("/api/tap")
+    async def tap(session_id: str, question: str, answer: str, turn: int) -> JSONResponse:
+        """A tap on one of the buttons shown with reply number ``turn`` (for now, the two for "was the camera at
+        1×?"): a plain yes or no to the question that reply asked. A tap on an older reply's buttons answers nothing."""
+        if answer not in ("yes", "no"):
+            raise HTTPException(400, "answer must be yes or no")
+        s = session(session_id)
+
+        def work() -> JSONResponse:
+            if question not in TAPPED or s.talk.asked != question or s.talk.waiting is not None or turn != s.replies:
+                raise HTTPException(409, "that question isn't the one being asked now")
+            reply = s.talk.tap(question, answer == "yes")
+            tapped = PAGE[s.talk.language][TAP_LABELS[question][answer]]
+            s.log.append({"person": tapped})
+            if reply.text:
+                s.log.append({"coach": reply.text})
+            audio = spoken(reply.text, s.talk.language) if reply.text else None
+            keeping("tap", session_id, {"question": question, "answer": answer, "text": reply.text,
+                                        "said": reply.said})
+            return JSONResponse({"heard": tapped, "text": reply.text, "said": reply.said, "audio": audio,
+                                 "more": False, **state(s)})
+
+        return await models_thread.run(work)
+
     @app.post("/api/door")
     async def door(request: Request, session_id: str, leaf_height_in: float | None = None) -> JSONResponse:
         """A photo of the door from where the generator stands. The door's height is the one the person gave, or
@@ -291,7 +322,7 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
                 photo = Path(tmp) / ("door.heic" if data[4:12] in HEIC else "door.jpg")
                 photo.write_bytes(data)
                 reading = measure(photo, get_models().segmenter, s.talk.door_in)
-                picture = overlay(photo, reading, Path(tmp), label=False).read_bytes()
+                picture = overlay(photo, reading, Path(tmp), label=False, longest=1280).read_bytes()
             outline = "data:image/jpeg;base64," + base64.b64encode(picture).decode()
             if reading.refused:
                 text = door_note(reading.refused, language)

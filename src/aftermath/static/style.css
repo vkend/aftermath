@@ -1,32 +1,45 @@
 :root {
   --ink: #1b1b1b;
   --muted: #5a5a5a;
-  --paper: #fbfaf7;
+  --paper: #f6f5f1;
   --card: #ffffff;
-  --line: #d9d6cf;
+  --line: #dedad2;
   --emergency: #a3001b;
   --danger: #b3261e;
   --warning: #8a5300;
   --info: #1f4e79;
   --check: #3d3d3d;
+  --danger-tint: #fdeceb;
+  --warning-tint: #fdf3e3;
+  --info-tint: #e9f0f8;
+  --check-tint: #f1f0ec;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 6px 18px rgba(0, 0, 0, 0.06);
+  --on-accent: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --ink: #f1efea;
     --muted: #b8b4ab;
-    --paper: #161616;
-    --card: #222222;
+    --paper: #141414;
+    --card: #212121;
     --line: #3a3a3a;
     --emergency: #ff6b81;
     --danger: #ff8a80;
     --warning: #ffc266;
     --info: #8ec5ff;
     --check: #d0d0d0;
+    --danger-tint: #3b1e1c;
+    --warning-tint: #382b14;
+    --info-tint: #18283a;
+    --check-tint: #2a2a2a;
+    --shadow: none;
+    --on-accent: #111111;
   }
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -38,65 +51,144 @@ body {
   margin-inline: auto;
 }
 
-header { padding-top: 16px; }
-h1 { margin: 0; font-size: 28px; }
+header { padding-top: 14px; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.mark { width: 30px; height: 30px; color: var(--info); }
+h1 { margin: 0; font-size: 26px; letter-spacing: -0.01em; }
 h2 { font-size: 20px; margin: 0 0 8px; }
-#subtitle { margin: 4px 0 12px; color: var(--muted); }
+#subtitle { margin: 2px 0 12px; color: var(--muted); font-size: 16px; }
 
-.languages { display: flex; gap: 8px; }
-.language {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--card);
-  color: var(--ink);
-  font-size: 16px;
-}
-.language.chosen { border-color: var(--info); font-weight: 600; }
+svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.icon { width: 24px; height: 24px; flex: none; }
+
+/* The languages, as one segmented control. */
+.languages { display: flex; gap: 4px; padding: 4px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; }
+.language { flex: 1; margin: 0; padding: 8px 6px; border: 0; border-radius: 10px; background: transparent;
+  color: var(--ink); font-size: 16px; line-height: 1.2; }
+.language small { display: block; font-size: 12px; color: var(--muted); }
+.language.chosen { background: var(--info); color: var(--on-accent); font-weight: 600; }
+.language.chosen small { color: inherit; opacity: 0.85; }
 
 button, .button {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
   margin: 10px 0;
-  padding: 16px;
+  padding: 15px 16px;
+  font: inherit;
   font-size: 19px;
+  line-height: 1.25;
   text-align: center;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--card);
   color: var(--ink);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
 }
 .button input { display: none; }
-.primary { background: var(--info); border-color: var(--info); color: #fff; font-weight: 600; }
+.primary { background: var(--info); border-color: var(--info); color: var(--on-accent); font-weight: 600; }
+#talk { padding: 18px 16px; font-size: 21px; }
 #talk.recording { background: var(--danger); border-color: var(--danger); }
 button:disabled, .button.busy { opacity: 0.5; }
+
+/* The two photo buttons side by side, icon over label. */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pair .button { flex-direction: column; gap: 6px; margin: 0; padding: 14px 10px; font-size: 17px; }
+.pair .icon { width: 28px; height: 28px; color: var(--info); }
 
 .card {
   margin: 16px 0;
   padding: 16px;
-  border-radius: 14px;
+  border-radius: 16px;
   background: var(--card);
-  border: 2px solid var(--line);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
 }
-.card.emergency, .card.danger { border-color: var(--danger); }
-.card.emergency h2, .card.danger h2 { color: var(--danger); }
-.card.warning { border-color: var(--warning); }
-.card.warning h2 { color: var(--warning); }
-.card.info h2 { color: var(--info); }
+#welcome p { margin: 0 0 4px; }
+.scene { display: block; width: 100%; height: auto; margin: 0 0 12px; }
+.scene .ground { stroke: var(--line); }
+.scene .gen { stroke: var(--warning); }
+.scene .house { stroke: var(--ink); }
+.scene .dim { stroke: var(--info); }
+.scene text { fill: var(--info); stroke: none; font: 700 17px -apple-system, BlinkMacSystemFont, sans-serif;
+  text-anchor: middle; }
 
-.distance { font-size: 26px; font-weight: 700; margin: 8px 0; }
-#range { font-size: 16px; font-weight: 400; color: var(--muted); }
-#outline { width: 100%; border-radius: 10px; margin-top: 8px; }
-#warnings { padding-left: 20px; color: var(--warning); }
+/* The verdict: its band and the distance first, big and in the band's colour, on the band's tint; then the photo
+   with the door outlined; then the explanation, its first sentence shown and the rest a tap away. */
+#verdict { padding: 0; overflow: hidden; border-width: 2px; scroll-margin-top: 10px; }
+#verdict .head { padding: 14px 16px 12px; background: var(--check-tint); }
+#verdict .body { padding: 4px 16px 14px; }
+#verdict .body:not(:has(> :not([hidden]))) { display: none; }
+#verdict h2 { font-size: 32px; line-height: 1.2; margin: 0; }
+.distance { font-size: 28px; font-weight: 700; line-height: 1.25; margin: 2px 0 0; }
+#range { margin: 2px 0 0; }
+.action { margin: 8px 0 0; font-size: 18px; font-weight: 700; line-height: 1.35; }
+#verdict .head .choices { margin-top: 12px; }
+#verdict.emergency, #verdict.danger { border-color: var(--danger); }
+#verdict.emergency .head, #verdict.danger .head { background: var(--danger-tint); }
+#verdict.emergency h2, #verdict.danger h2, #verdict.emergency .distance, #verdict.danger .distance,
+#verdict.emergency .action, #verdict.danger .action { color: var(--danger); }
+#verdict.warning { border-color: var(--warning); }
+#verdict.warning .head { background: var(--warning-tint); }
+#verdict.warning h2, #verdict.warning .distance, #verdict.warning .action { color: var(--warning); }
+#verdict.info { border-color: var(--info); }
+#verdict.info .head { background: var(--info-tint); }
+#verdict.info h2, #verdict.info .distance, #verdict.info .action { color: var(--info); }
+#warnings { padding-left: 20px; margin: 10px 0 0; color: var(--warning); font-size: 16px; }
+#outline { display: block; max-width: 100%; max-height: 200px; margin: 12px auto 0; border-radius: 12px; }
+.explain { margin: 12px 0 0; font-size: 16px; }
+#verdict-more summary { cursor: pointer; list-style: none; }
+#verdict-more summary::-webkit-details-marker { display: none; }
+#verdict-more:not([open]) summary::after { content: "…"; display: inline-block; margin-left: 6px; padding: 0 9px;
+  border-radius: 9px; background: var(--check-tint); color: var(--muted); font-weight: 700; line-height: 1.35; }
+#verdict-more.limits summary { font-size: 15px; color: var(--muted); }
+#verdict-more p { margin: 8px 0 0; }
 .small { font-size: 15px; color: var(--muted); }
 
-#log { list-style: none; padding: 0; }
-#log li { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: var(--card); }
-#log li.person { background: transparent; border: 1px dashed var(--line); }
+/* The coach's latest reply, under the verdict and above the buttons. */
+.reply { margin: 12px 0; padding: 14px 16px; border-radius: 16px; background: var(--card);
+  border: 1px solid var(--line); border-left: 5px solid var(--info); box-shadow: var(--shadow); scroll-margin: 10px; }
+.reply.refused { border-left-color: var(--warning); background: var(--warning-tint); }
+.reply.emergency { border: 2px solid var(--danger); border-left-width: 6px; background: var(--danger-tint); }
+.reply p { margin: 0; }
+.reply .heard { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; color: var(--muted); font-size: 16px; }
+.reply .heard .icon { width: 18px; height: 18px; }
+.reply .lead { display: block; margin-bottom: 6px; font-size: 22px; line-height: 1.3; color: var(--danger); }
+.reply .more { display: inline-block; width: auto; margin: 0 0 0 2px; padding: 0 10px; border: 0;
+  border-radius: 9px; background: var(--check-tint); color: var(--muted); font-size: 16px; font-weight: 700;
+  line-height: 1.4; box-shadow: none; vertical-align: baseline; }
+.reply .listen { width: auto; margin: 12px 0 0; padding: 9px 16px; font-size: 17px; }
+.reply .listen .icon { width: 20px; height: 20px; }
+.call { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 14px 0 0; padding: 14px;
+  border-radius: 14px; background: var(--danger); color: var(--on-accent); font-size: 24px; font-weight: 700;
+  text-decoration: none; letter-spacing: 0.04em; }
+.call .icon { width: 26px; height: 26px; }
 
+/* Two answer buttons under a reply whose question is easy to mishear ("was the camera at 1×?"). */
+.choices:not([hidden]) { display: flex; gap: 10px; margin-top: 12px; }
+.choices button { flex: 1; margin: 0; }
+
+#status { min-height: 1.4em; margin: 10px 2px; }
+#status.waiting::before { content: ""; display: inline-block; width: 14px; height: 14px; margin-right: 8px;
+  vertical-align: -2px; border: 2px solid var(--line); border-top-color: var(--info); border-radius: 50%;
+  animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* The conversation so far, as a chat: the coach on the left, the person on the right. */
+#log { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 8px 0; padding: 0; }
+#log li.current { display: none; }
+#log li { max-width: 88%; padding: 10px 13px; border-radius: 16px 16px 16px 5px; background: var(--card);
+  border: 1px solid var(--line); font-size: 16px; }
+#log li.person { align-self: flex-end; border-radius: 16px 16px 5px 16px; background: var(--info-tint);
+  border-color: transparent; }
+
+#advice-title { margin-top: 24px; }
 #advice { list-style: none; padding: 0; }
-#advice li { margin: 10px 0; padding: 12px; border-left: 5px solid var(--check); background: var(--card); border-radius: 8px; }
+#advice li { margin: 10px 0; padding: 12px 14px; border-left: 5px solid var(--check); background: var(--card);
+  border-radius: 10px; font-size: 16px; box-shadow: var(--shadow); }
 #advice li.emergency, #advice li.danger { border-color: var(--danger); }
 #advice li.warning { border-color: var(--warning); }
 #advice li.info { border-color: var(--info); }
@@ -106,8 +198,8 @@ button:disabled, .button.busy { opacity: 0.5; }
 
 footer { margin-top: 24px; font-size: 15px; color: var(--muted); }
 
-.banner { margin: 16px 0 0; padding: 8px 12px; border-radius: 10px; background: var(--info); color: #fff;
-  font-weight: 600; text-align: center; }
+.banner { margin: 16px 0 0; padding: 8px 12px; border-radius: 12px; background: var(--info);
+  color: var(--on-accent); font-weight: 600; text-align: center; scroll-margin-top: 10px; }
 .field { display: block; margin: 12px 0; font-size: 16px; color: var(--muted); }
 .field input, .field textarea { display: block; width: 100%; margin-top: 6px; padding: 10px; font: inherit;
   font-size: 18px; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 10px; }
@@ -115,10 +207,3 @@ a.button { text-decoration: none; }
 #summary-details { margin-top: 8px; font-size: 15px; color: var(--muted); }
 #summary-text { white-space: pre-wrap; font: 14px/1.4 ui-monospace, Menlo, monospace; color: var(--ink);
   background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
-
-/* The coach's latest reply, by the buttons: where the person is looking after a photo or a turn. */
-.reply { margin: 12px 0; padding: 12px 14px; border-radius: 12px; background: var(--card);
-  border-left: 5px solid var(--info); scroll-margin: 16px; }
-.reply.refused { border-left-color: var(--warning); }
-.reply p { margin: 0; }
-.reply .listen { width: auto; margin: 10px 0 0; padding: 10px 18px; font-size: 17px; }
