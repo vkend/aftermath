@@ -46,12 +46,13 @@ the verdict sentence of each goes in the video.
 
 1. Stand on an X at **8–9 ft**, level, with the whole door in frame. **दरवाज़े की फ़ोटो** → Take Photo at 1×. It should say
    too close. It ends by asking whether the generator is outside: **don't answer**, just walk out.
-2. On an X at **30 ft**, take a photo with the Camera app at 1×. Then **दरवाज़े की फ़ोटो** → Photo Library, and pick it. Keep
+2. On an X at **30 ft**, take a photo with the Camera app at 1×, **level, with the whole door in view**: a tilted phone
+   or a door partly hidden holds the verdict at borderline. Then **दरवाज़े की फ़ोटो** → Photo Library, and pick it. Keep
    the library grid off camera. It should say the distance counts only if the generator is outside.
 3. Say «हाँ, बाहर है». It should say it meets the guidance. It ends by asking the door's height: **stop there**.
 4. Pull the tape from that X to the door and show the reading.
 
-If it mishears «हाँ, बाहर है», say it again, or take the far photo again and start from step 2.
+If it mishears «हाँ, बाहर है», say it again. If it mishears twice, take the far photo again and start from step 2.
 
 ## 4. Rating plate
 
