@@ -43,10 +43,12 @@ def normal(text: str) -> str:
 
 # Words that mean someone may be poisoned now. The emergency line doesn't wait for the language model: when they're
 # there, and not negated ("nobody is dizzy", "चक्कर नहीं"), it is said at once, and the details are asked afterwards.
+# Hindi as MMS spells it too: on Nov 4 it wrote «चककर» for «चक्कर», «सर» for «सिर», and «दद्द», «दद» or «द्द» for «दर्द».
 SYMPTOMS = re.compile(
     r"dolor de cabeza|duele la cabeza|mareo|maread[oa]s?|n[áa]useas|desmay|v[óo]mit|"
     r"headache|head hurts|dizzy|nause|vomit|faint|passed out|throwing up|"
-    r"सिर ?दर्द|सिर में दर्द|सिर दुख|चक्कर|कमजोरी|उल[्]?टी(?! ?(तरफ|ओर|दिशा))|जी मिचला|मितली|मतली|बेहोश|सीने में दर्द",
+    r"(सिर|सर) ?(में )?(द(र्|र|द्)?द|द्द)|सिर दुख|चक्?कर|कमजोरी|उल[्]?टी(?! ?(तरफ|ओर|दिशा))|जी मिचला|मितली|मतली|"
+    r"बेहोश|सीने में दर्द",
     re.I)
 # A negation reaches the next few words, never past a comma: in "No, I have a headache" the "no" answers a question.
 NEGATION = re.compile(r"\b(no|not|nobody|no one|none|nadie|ni|ningun[oa]?|tampoco)\b[^.?!,;]{0,20}$", re.I)
@@ -76,9 +78,12 @@ def says_symptoms(heard: str) -> bool:
 # only the emergency line. Any sound counts, a low-battery chirp too: a sounding alarm is never guessed to be its
 # battery. The sound counts next to the alarm's name, or alone in answer to a question about the alarm ("हाँ, बज रहा
 # है"). Not "suena" alone ("suena bien"), and not "sounds" ("it sounds fine").
-ALARM = re.compile(r"\balarm|\bdetector|\balarma|अलार्म|डिटेक्टर", re.I)
+# Hindi as MMS spells it too (Nov 4, from a macOS Hindi voice): «आलार्म» and «अरलारम» for «अलार्म», «दिटेकतर» for
+# «डिटेक्टर», «बझ» for «बज», «बीव» for «बीप». Missed, the alarm went to the model, which has no field for it.
+ALARM = re.compile(r"\balarm|\bdetector|\balarma|[अआ]र?ला(र्|र)?म|[डद][िी][टत]े(क्ट|क्त|कत|कट)र", re.I)
 SOUNDING = re.compile(r"\bgo(es|ing)? off\b|\b(gone|went) off\b|\bbeep|\bsounding\b|\bsounded\b|\bchirp|\bringing\b|"
-                      r"\brang\b|\bbuzz|\bsonando\b|\bson[óo]\b|\bsuena\b|\bpit(a|ó|o|ando)\b|बज|बीप|आवाज|सीटी|शोर", re.I)
+                      r"\brang\b|\bbuzz|\bsonando\b|\bson[óo]\b|\bsuena\b|\bpit(a|ó|o|ando)\b|बज|बझ|बीप|बीव(?!ी)|आवाज|सीटी|"
+                      r"शोर", re.I)
 QUIET = re.compile(r"(\b(no|not|never|nunca|nada)\b|n't\b|\b(is|was|does|did|has|are|were|wo|ca)nt\b)[^.?!,;।]{0,20}$",
                    re.I)
 ABOUT_THE_ALARM = ("ask-co-alarm", "checkin-co-alarm")
@@ -219,7 +224,7 @@ def quick_place(heard: str, asked: str | None) -> str | None:
 # with words that fit the question ("sí, ya está afuera", "हाँ, बाहर है", "no hay"), or the question's own words
 # ("ya está afuera"). Hindi as normal() leaves it: "हां" for "हाँ".
 YES_WORDS = frozenset({"sí", "claro", "correcto", "exacto", "cierto", "ajá", "yes", "yeah", "yep", "yup", "correct",
-                       "हां", "हांजी", "जीहां", "haan", "haanji"})
+                       "हां", "हांजी", "जीहां", "जिहां", "haan", "haanji"})  # «जिहाँ»: MMS's «जी हाँ» (Nov 4)
 MAYBE_YES = frozenset({"si", "se", "हा"})  # a yes only with words that fit the question, or a lone "si"
 NO_WORDS = frozenset({"no", "nope", "nah", "nada", "ninguno", "ninguna", "nunca", "none", "nothing", "never", "not",
                       "dont", "doesnt", "arent", "isnt", "havent", "नहीं", "नही", "nahi", "nahin"})
@@ -287,7 +292,8 @@ QUESTIONS = {
         "tengo", "tenemos", "hay", "una", "uno", "un", "alarma", "detector", "funciona", "sirve", "con", "batería",
         "baterías", "pilas",
         "i", "we", "do", "have", "one", "it", "works", "a", "an", "alarm", "there", "is", "theres", "है", "हैं",
-        "मेरे", "हमारे", "पास", "एक", "अलार्म", "बैटरी", "वाला", "काम", "करता", "लगा", "हुआ", "चलता", "घर", "में"})),
+        "मेरे", "हमारे", "पास", "एक", "अलार्म", "आलार्म", "बैटरी", "वाला", "काम", "करता", "लगा", "हुआ", "चलता", "घर",
+        "में"})),
     "ask-downed-lines": Question("downed_line", "yes", "no", "no", frozenset({
         "hay", "veo", "cable", "cables", "caído", "caídos", "cerca", "por", "aquí", "there", "are", "is", "any",
         "line", "lines", "wire", "wires", "i", "we", "see", "near", "nearby", "here", "है", "हैं", "तार", "बिजली",

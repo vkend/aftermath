@@ -540,8 +540,11 @@ SOUNDING = ["अलार्म बज रहा है", "अलार्म �
             "अलार्म की सीटी बज रही है", "नहीं, अलार्म बज रहा है", "रात को अलार्म बजा", "अलार्म बज रहा है ना?",
             "अलार्म बज रहा है, नहीं?", "The alarm is going off!", "the CO alarm is beeping", "the detector went off",
             "No, the alarm keeps chirping", "our alarm was sounding a minute ago", "la alarma está sonando",
-            "el detector suena", "la alarma pita", "No, la alarma está pitando"]
-QUIET = ["अलार्म नहीं बज रहा", "अलार्म बज नहीं रहा", "अलार्म ठीक है", "रात के दो बज रहे हैं",
+            "el detector suena", "la alarma pita", "No, la alarma está pitando",
+            # what MMS heard a macOS Hindi voice say for «अलार्म बज रहा है» and the like (Nov 4)
+            "आलार्म बझ रहा है", "कार्बन मुनो ऑपसाइद आलार्म बज रहा है", "मेरा आलार्म बीव कर रहा है", "दिटेकतर बज रहा है"]
+QUIET = ["अलार्म नहीं बज रहा", "अलार्म बज नहीं रहा", "अलार्म ठीक है", "रात के दो बज रहे हैं", "आलार्म नहीं बज रहा",
+         "मेरी बीवी बाहर है",
          "the alarm isn't going off", "it never went off", "the alarm's not beeping", "the generator is beeping",
          "it sounds fine", "la alarma no suena", "suena bien"]
 
@@ -566,6 +569,31 @@ def test_an_alarm_that_isnt_sounding_is_no_emergency(heard):
 def test_a_sound_alone_in_answer_to_the_alarm_question_is_the_alarm_sounding(rule, heard):
     assert says_alarm(heard, rule) and not says_alarm(heard, "ask-exhaust")
     assert not says_alarm("हाँ, काम कर रहा है", rule) and not says_alarm("sí, suena bien", rule)
+
+
+# What MMS heard a voice say for «मुझे चक्कर आ रहे हैं» and «सिर में दर्द हो रहा है» (Nov 4, macOS and MMS voices).
+@pytest.mark.parametrize("heard", ["मुझे चककर आ रहे हैं", "सिर में दद्द हो रहा है", "सर में द्द हो रहा है",
+                                   "सिर में दद हो रहा है"])
+def test_symptoms_as_mms_spells_them_get_the_emergency_line_at_once(heard):
+    talk = asked("ask-exhaust", language="hi")
+    assert talk.reply(heard).said == ["fresh-air-now"] and talk.reader.prompts == []
+
+
+def test_words_that_only_look_like_symptoms_arent_any():
+    for heard in ("चक्रवात के बाद बिजली चली गई", "सर्दी बहुत है", "सरदी है", "किसी को चककर नहीं आ रहे"):
+        assert not says_symptoms(heard), heard
+
+
+def test_ji_haan_as_mms_runs_it_together_is_a_plain_yes():
+    talk = asked("confirm-outside", language="hi")
+    talk.reply("जिहाँ बाहर है")  # «जी हाँ, बाहर है», as MMS heard a macOS voice say it
+    assert talk.situation.location == "outdoors" and talk.reader.prompts == []
+
+
+def test_a_yes_with_the_alarm_as_mms_spells_it_is_plain():
+    talk = asked("ask-co-alarm", language="hi")
+    talk.reply("हाँ जी आलार्म है")  # «हाँ जी, अलार्म है», as MMS heard it
+    assert talk.situation.co_alarm is True and talk.reader.prompts == []
 
 
 def test_a_no_answering_the_question_before_doesnt_hide_symptoms_and_a_tag_isnt_a_negation():
