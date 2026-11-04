@@ -229,6 +229,18 @@ const ITEMS = {
     const mask = `conic-gradient(from ${it.from || 180}deg at ${it.cx}% ${it.cy}%, #000 ${deg}deg, transparent ${deg + 0.01}deg)`;
     return `<img class="it" src="${it.src}" style="${place(it)}-webkit-mask-image:${mask};mask-image:${mask};${motion(it, lt)}">`;
   },
+  wave(it, lt) { // who's speaking, live: bars that follow the voice's own loudness, frame by frame
+    const k = Math.max(0, Math.min(it.levels.length - 1, Math.floor((lt - (it.at || 0)) * 30)));
+    const level = it.levels[k], bars = 7, bw = it.w / bars;
+    let s = '';
+    for (let i = 0; i < bars; i += 1) {
+      const shape = 0.4 + 0.6 * Math.sin(Math.PI * (i + 0.5) / bars);
+      const live = 0.7 + 0.3 * Math.abs(Math.sin(lt * 17 + i * 1.9));
+      const h = Math.max(8, it.h * level * shape * live);
+      s += `<div style="position:absolute;left:${i * bw + 3}px;top:${(it.h - h) / 2}px;width:${bw - 6}px;height:${h}px;border-radius:${bw / 2}px;background:${it.color}"></div>`;
+    }
+    return `<div class="it" style="${place(it)}${motion(it, lt)}">${s}</div>`;
+  },
   draw(it, lt) { // an SVG whose paths with class "d" draw on, each from its own data-at, over its data-dur
     const local = lt - (it.at || 0);
     const svg = it.svg.replace(/data-at="([\d.]+)" data-dur="([\d.]+)"/g, (m, a, d) => {

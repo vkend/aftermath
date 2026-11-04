@@ -2,6 +2,7 @@
 
     uv run python scripts/video/make_video.py prepare --near <10 ft door photo> --far <30 ft door photo>
     uv run aftermath serve --host 127.0.0.1 --port 9443        # in another terminal: the real app and models
+    uv run python scripts/video/make_video.py audition --voice Lekha --base https://localhost:9443  # the voice
     uv run python scripts/video/make_video.py record             # the phone page at iPhone size, through the app
     uv run python scripts/video/make_video.py cards              # title, numbers, diagram, chart and credits
     uv run python scripts/video/make_video.py edit               # data/video/aftermath-poc-v1.mp4
@@ -14,10 +15,11 @@ what the video uses and under what terms.
 - **prepare**: the door photos, with what's personal blurred (a person, the rest of the room) before the app sees them,
   in the two forms a phone sends: from Photo Library, with the camera's lens data, and from Safari's own camera, which
   keeps only the rotation. And the stand-in person's voice: takes chosen by **audition**.
-- **audition**: MMS-TTS (the app's own voice, so no other licence), pitched apart from the coach, says each line with
-  several seeds; each take goes through the page's own recording path (scripts/video/audition.js) to the app's MMS,
-  and the first take the app reads as meant is kept: «हाँ, बाहर है» as a plain yes, the mumble as unclear. A person
-  says it again when they're misheard; the takes that weren't heard right are listed, not hidden.
+- **audition**: a voice says each of the stand-in's lines a few ways; each take goes through the page's own recording
+  path (scripts/video/audition.js) to the app's MMS, and the first take the app reads as meant is kept: «हाँ, बाहर
+  है» as a plain yes, the mumble as unclear. A person says it again when they're misheard; the takes that weren't
+  heard right are listed, not hidden. The voice is macOS's Lekha, a woman's Hindi voice (`--voice Lekha`, the user's
+  choice on Nov 4); without `--voice`, MMS-TTS, pitched apart from the coach, with several seeds.
 - **record**: scripts/video/record.js (Playwright, headless Chromium at 393×852, 2× pixels) talks to the running app
   through its own page: it taps the buttons, uploads the photos and speaks the stand-in's lines into a fake
   microphone, which the page records as it would a person's. It saves the screen as it was drawn, and each reply's
@@ -53,11 +55,27 @@ LINES = {
     "en-outside": ("en", "Yes, it's outside.", "yes:confirm-outside"),
     "es-garage": ("es", "El generador está en el garaje.", "garage"),
 }
+# The narrated cut in Spanish (the user's call, Nov 4: it speaks to more of its audience), its stand-in's lines under the
+# same names, so the scenes and the edit play them as before; "si" is the lone «Sí» of chapter 04.
+ES_LINES = {
+    "garage": ("es", "Se fue la luz. Prendí el generador en el garaje.", "garage"),
+    "outside": ("es", "Sí, está afuera.", "yes:confirm-outside"),
+    "mumble": ("es", "Mmm…", "unclear:confirm-outside"),
+    "headache": ("es", "Me duele la cabeza.", "symptoms"),
+    "si": ("es", "Sí", "yes:confirm-outside"),
+}
+# Other ways a mumble comes out: MMS heard nothing at all in Paulina's «Mmm…», which the app takes as silence, not as
+# an answer it isn't sure of.
+ES_SAY_ALSO = {"mumble": ["Hmm", "Mmm, eh…", "Eh…", "Ehm", "Mmm, este…", "Este…", "Mm, pues…"]}
 # How the voice is told to say a line, where the written form came out wrong: MMS-TTS said «बाहर» like «बार» and
 # dropped a first "yes". The caption shows the line as written.
 SAY_AS = {"outside": ["हाँ बाहर है", "हाँ बा हर है", "हाँ बाहार है", "हां जी बाहर है"],
           "still-outside": ["हाँ बाहर है", "हाँ बा हर है", "हाँ बाहार है", "हां जी बाहर है"],
           "en-outside": ["yes it's outside", "yeah it's outside", "yes, yes, it's outside", "yess it's outside"]}
+# Other ways to say a line in a macOS voice, where MMS misheard it as written: from Lekha it heard «सिर में दर्द हो
+# रहा है» as «सिर मिज दल्द हो रहा है», which isn't a symptom to the app. Each still means "I have a headache".
+SAY_ALSO = {"headache": ["सिर दुख रहा है", "मेरा सिर दुख रहा है", "सिरदर्द हो रहा है", "मेरे सिर में दर्द है",
+                         "सर में दर्द हो रहा है", "सिर में बहुत दर्द हो रहा है"]}
 PITCHES = (1.18, 0.85)  # the stand-in's voice, raised or lowered from the coach's
 SEEDS = range(4)
 # Regions to blur, as fractions of the upright photo (left, top, right, bottom): the person, the children's drawings,
@@ -169,6 +187,66 @@ def audition(base: str) -> None:
     (folder / "chosen.json").write_text(json.dumps(chosen.get(best, {}), indent=1))
 
 
+def audition_say(base: str, voice: str, rate: int | None = None, language: str = "hi") -> None:
+    """The stand-in's Hindi lines in a macOS voice (``say -v``), and c1a's lone «हाँ»: each line written a few ways,
+    each take through the page's own recording path to the app's MMS as before, and the first the app reads as meant
+    kept and put where the recorder plays it (work/voices). The user chose Lekha, a woman's voice, at its own rate
+    (Nov 4): pitching MMS-TTS up from its man's voice sounded like a cartoon."""
+    from aftermath.cache import ResponseCache
+    from aftermath.speech import Listener, to_wav16k
+
+    folder = WORK / "audition"
+    folder.mkdir(parents=True, exist_ok=True)
+    tag = voice.lower() + (f"-r{rate}" if rate else "")
+    if language == "es":
+        lines = dict(ES_LINES)
+    else:
+        lines = {name: line for name, line in LINES.items() if line[0] == "hi"}
+        lines["haan"] = ("hi", "हाँ", "yes:confirm-outside")  # c1a's yes, played in the narration's pause
+    takes: dict[str, list[Path]] = {}
+    for name, (language, text, _) in lines.items():
+        also = [*SAY_AS.get(name, []), *SAY_ALSO.get(name, [])] if language == "hi" else ES_SAY_ALSO.get(name, [])
+        ways = list(dict.fromkeys([text, text.replace(",", ""), text + ("।" if language == "hi" else "."), *also]))
+        for k, said in enumerate(ways):
+            aiff, take = folder / f"{name}-{tag}-{k}.aiff", folder / f"{name}-{tag}-{k}.wav"
+            run("say", "-v", voice, *(["-r", str(rate)] if rate else []), "-o", str(aiff), said)
+            # Half a second of silence first, as the other takes have: MMS lost a first syllable without it.
+            run("ffmpeg", "-v", "error", "-y", "-i", str(aiff), "-af", "aresample=48000,adelay=500:all=1,"
+                "apad=pad_dur=0.3", "-ac", "1", str(take))
+            aiff.unlink()
+            takes.setdefault(name, []).append(take)
+    listing = folder / "takes.json"
+    listing.write_text(json.dumps([str(t) for ts in takes.values() for t in ts]))
+    env = {"NODE_PATH": str(node_modules()), "PATH": "/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin"}
+    run("node", str(Path(__file__).with_name("audition.js")), base, str(listing), env=env)
+    ears = Listener(ResponseCache(folder / "cache"))
+    results, chosen = {}, {}
+    for name, (language, text, check) in lines.items():
+        for take in takes[name]:
+            heard = ears.transcribe(to_wav16k(take.with_suffix(".webm"), folder / "heard.wav"), language)
+            ok = heard_as_meant(heard, check)
+            results[take.name] = {"line": name, "said": text, "heard": heard, "as meant": ok}
+            if ok and name not in chosen:
+                chosen[name] = str(take)
+        tried = [r for r in results.values() if r["line"] == name]
+        print(f"{name:14} {'chosen ' + Path(chosen[name]).name if name in chosen else 'NONE':32}"
+              f" {sum(r['as meant'] for r in tried)} of {len(tried)} heard as meant: "
+              + ", ".join(f"«{r['heard']}»" for r in tried))
+    (folder / f"results-{tag}.json").write_text(json.dumps(results, ensure_ascii=False, indent=1))
+    for lone in ("haan", "si"):  # a lone yes is the hard case (chapter 04's own point): the plain take, as written
+        if lone in lines and lone not in chosen:
+            chosen[lone] = str(takes[lone][0])
+            print(f"{lone}: none heard as meant; the plain take is kept")
+    missing = [name for name in lines if name not in chosen]
+    if missing:
+        sys.exit(f"no take heard as meant for {missing}: the recording would go wrong")
+    (folder / f"chosen-{tag}.json").write_text(json.dumps(chosen, indent=1))
+    voices = WORK / "voices"
+    voices.mkdir(exist_ok=True)
+    for name, take in chosen.items():
+        shutil.copy(take, voices / f"{name}.wav")
+
+
 def node_modules() -> Path:
     """Playwright for the recorder, installed once under data/video/node."""
     folder = VIDEO / "node"
@@ -177,9 +255,10 @@ def node_modules() -> Path:
     return folder / "node_modules"
 
 
-def record(base: str, only: list[str]) -> None:
+def record(base: str, only: list[str], language: str = "hi") -> None:
     shots = WORK / "shots.json"
-    shots.write_text(json.dumps({"scenes": SCENES, "only": only, "work": str(WORK)}, ensure_ascii=False, indent=1))
+    scenes = SCENES_ES if language == "es" else SCENES
+    shots.write_text(json.dumps({"scenes": scenes, "only": only, "work": str(WORK)}, ensure_ascii=False, indent=1))
     env = {"NODE_PATH": str(node_modules()), "PATH": "/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin"}
     run("node", str(Path(__file__).with_name("record.js")), base, str(shots), str(TAKES), env=env)
 
@@ -212,6 +291,15 @@ SCENES = [
 ]
 
 
+# The narrated cut's scenes in Spanish (record --language es): the same takes, the app in Spanish, the stand-in's
+# Spanish lines (ES_LINES), and the hero only as far as the mumble the film shows.
+SCENES_ES = [dict(scene, language="es") for scene in SCENES if scene["name"] in ("cold-open", "symptom", "garage")] + [
+    {"name": "hero", "language": "es", "steps": [
+        {"tap": "#begin"}, {"rest": 1500}, {"photo": "near-takephoto.jpg"}, {"rest": 2500},
+        {"photo": "far-library.jpg"}, {"rest": 2500}, {"say": "mumble"}, {"rest": 2500}, {"say": "outside"},
+        {"rest": 2500}]}]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     steps = parser.add_subparsers(dest="step", required=True)
@@ -221,17 +309,21 @@ def main() -> None:
     r = steps.add_parser("record")
     r.add_argument("--base", default="https://localhost:9443", help="where the app is being served")
     r.add_argument("--only", nargs="*", default=[], help="record only these scenes")
+    r.add_argument("--language", default="hi", help="es: the narrated cut's scenes in Spanish")
     a = steps.add_parser("audition")
     a.add_argument("--base", default="https://localhost:9443", help="where the app is being served")
+    a.add_argument("--voice", help="a macOS voice for the stand-in's Hindi lines (say -v), instead of MMS-TTS")
+    a.add_argument("--rate", type=int, help="its rate, in words a minute (say -r); its own if not given")
+    a.add_argument("--language", default="hi", help="es: the Spanish lines (ES_LINES)")
     steps.add_parser("cards")
     steps.add_parser("edit")
     args = parser.parse_args()
     if args.step == "prepare":
         prepare(args.near.expanduser(), args.far.expanduser())
     elif args.step == "audition":
-        audition(args.base)
+        audition_say(args.base, args.voice, args.rate, args.language) if args.voice else audition(args.base)
     elif args.step == "record":
-        record(args.base, args.only)
+        record(args.base, args.only, args.language)
     elif args.step == "cards":
         from cards import render_cards  # scripts/video/cards.py
         from edit import CREDITS

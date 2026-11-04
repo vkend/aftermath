@@ -32,7 +32,7 @@ HEARD = ""  # how often the stand-in's yes was heard, from the audition (set in 
 
 # What the stand-in says, in English.
 PERSON = {"garage": "The power's out. I've started the generator in the garage.", "outside": "Yes, it's outside.",
-          "still-outside": "Yes, it's outside.", "mumble": "Hmm…", "headache": "I have a headache.",
+          "still-outside": "Yes, it's outside.", "mumble": "Hmm…", "headache": "My head hurts.",
           "nobody": "No, nobody.", "alarm": "Yes, it's working.", "en-outside": "Yes, it's outside.",
           "es-garage": "The generator is in the garage."}
 

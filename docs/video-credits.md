@@ -14,17 +14,18 @@ The scripts in `scripts/video/` build the demo video from the parts below: the n
   lens data kept (no location); it also shows 1.2 s of that garage door, closed and only starting to lift, so nothing
   inside the garage is seen. The first cut's are the builder's hallway shots of Oct 29, with people and rooms blurred
   before the app saw them; the narrated cut's mumbled answer comes from that take, with its card blurred so that only
-  the app's reply reads. None of them is in this repository.
-- **The app's voices** are Meta MMS-TTS (`facebook/mms-tts-hin`, `-eng`, `-spa`, CC BY-NC 4.0), the app's own voice
-  model: the coach's is the app's voice, and the person's is a synthetic stand-in, pitched lower. Each of the
-  stand-in's lines was kept only if the app heard it as meant; for «हाँ, बाहर है», 2 of 16 takes. The lone «हाँ» in
-  v2's chapter 04 is the exception: the app's MMS heard none of twelve lone takes (the failure that chapter is about),
-  so the take kept is the first that Whisper, asked for a yes or a no, heard as «हाँ».
+  the app's reply reads. None of them is in this repository. The narrated cut is in Spanish: the app's own Spanish,
+  beyond the agencies' quoted lines, isn't yet reviewed by a native speaker (README, "Limits"), and its credits say so.
+- **The app's voice** is Meta MMS-TTS (`facebook/mms-tts-spa` in the narrated cut; `-hin` and `-eng` too, CC BY-NC
+  4.0), the app's own voice model, named on screen whenever it speaks. **The person** is a synthetic stand-in: in the
+  narrated cut macOS's Paulina (es_MX, the user's choice), in the first cut MMS-TTS pitched lower. Each of the
+  stand-in's lines was kept only if the app heard it as meant: from Paulina, every line the first time but the mumble,
+  which MMS heard as nothing in «Mmm…» and as «e» in «Mmm, eh…»; in the first cut, for «हाँ, बाहर है», 2 of 16 takes.
 - **Narration (v2):** macOS text-to-speech in the system's Siri voice, reading the script in
   `scripts/video/narrate.py` (the user asked for the Mac's own voice, and chose Siri's over Samantha), in the third
   person and without naming the builder: the voice isn't theirs. Each line is voiced in one breath, and the words'
-  times come from OpenAI's Whisper (large-v3-turbo, MIT licence) through mlx-audio, on the laptop. Credited as
-  "Narration: macOS text-to-speech (Siri voice)".
+  times come from OpenAI's Whisper (large-v3-turbo, MIT licence) through mlx-audio, on the laptop. Credited as "The
+  narrator: macOS Siri voice", beside the app's voice and the person's.
 - **Music and sound effects (v2):** procedural, made for the video by the builder's own seeded score generator, from
   no samples or recordings.
 - **v2's frames** are drawn by `scripts/video/stage.html` in headless Chromium (`scripts/video/render2.js`), from the
@@ -57,12 +58,12 @@ No agency endorses Aftermath.
   measured", "Listening" and "Reading"), on Google FLEURS (CC BY 4.0), DIODE (MIT) and Hypersim (CC BY-SA 3.0, numbers
   only): the six tape photos (+0.2% to +3.1%), DIODE's 7 doors of known height (median −0.2%, worst −2.0%), and 0 of
   31 door views under 20 ft rated far enough (DIODE 11, Hypersim 20).
-- v2's other figures: the ±6% error range in the diagram (`src/aftermath/door.py`); 18.2% and 10.5% of Hindi words
-  heard wrong (README, "Listening", on FLEURS), and short answers as the hardest (the same section: MMS understood 5
-  of 10 short Hindi answers, and none of four lone «हाँ», heard as "fhcc" and the like); 0 of 120
-  unclear Hindi answers clearing a warning, with either model (README, "Reading: Spark and Glimmer"); the 0.1 s reply to
-  symptom words (README's Conversation row, measured Nov 4; the take's own reply came in 0.08 s); and the 840 tests in
-  this repository on Nov 4.
+- v2's other figures: the ±6% error range in the diagram (`src/aftermath/door.py`); short Spanish answers heard
+  right, 17 of 30 by MMS on the laptop and 26 of 30 by Voice Transcribe, the lone "Sí." Voice Transcribe returned
+  empty without silence around it, and the 0.5 s of silence that fixed it, and not one of 240 transcripts, in Spanish,
+  English and Hindi, taking a danger off the list (all README, "Listening", Oct 29); the 0.1 s reply to symptom words
+  (README's Conversation row; the take's own reply came in 0.08 s); and Spanish as the most spoken language at home in
+  the US after English ([US Census Bureau, American Community Survey](https://www.census.gov/programs-surveys/acs)).
 
 ## Type
 

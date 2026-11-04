@@ -1,9 +1,11 @@
 """The v2 cut (Nov 4): the demo narrated in English by the Mac's own voice, in the podcast studio's look, with the app's
-Hindi in short clips and English subtitles under it. data/video/aftermath-poc-v2.mp4; v1, the cut with no narration,
+Spanish in short clips and English subtitles under it (the user moved it from Hindi to Spanish on Nov 4, to speak to
+more of its audience). data/video/aftermath-poc-v2.mp4; v1, the cut with no narration,
 stays as data/video/aftermath-poc-v1.mp4.
 
     uv run python scripts/video/edit2.py garage         # the garage photos for the hero (then record it: make_video.py)
-    uv run python scripts/video/edit2.py haan           # the stand-in's «हाँ» for c1a
+    uv run python scripts/video/make_video.py audition --voice Paulina --language es  # the stand-in, «Sí» too
+    uv run python scripts/video/make_video.py record --language es  # the app in Spanish, through its own page
     uv run python scripts/video/narrate.py              # the narration (script v17b), a line at a time
     uv run python scripts/video/edit2.py build          # the timeline, the voices, the score and the mix
     uv run python scripts/video/edit2.py stills 0,12.5  # a look at moments, before rendering it all
@@ -77,16 +79,17 @@ MOODS = {
 CHAPTERS = {1: "THE DANGER", 2: "WHY IT MATTERS", 3: "HOW IT WORKS", 4: "THE LANGUAGE PROBLEM", 5: "PROOF"}
 
 CREDITS = [
-    ("Narration", "macOS text-to-speech (Siri voice). The app's voices: Meta MMS-TTS (CC BY-NC 4.0); the person's is a "
-                  "synthetic stand-in."),
+    ("Voices", "The app's voice: Meta MMS-TTS (CC BY-NC 4.0). The person: a synthetic stand-in (macOS Paulina). The "
+               "narrator: macOS Siri voice."),
     ("Staged", "No generator was run. The garage photos and clip: the builder's own, the house number painted out. "
-               "Screen: the real app, recorded."),
+               "Screen: the real app, recorded. The app's own Spanish, beyond the agencies' quoted lines, isn't yet "
+               "reviewed by a native speaker."),
     ("Models", "SAM 3.1 (on Apple MLX) · Muse Glimmer · Muse Spark and Voice Transcribe · Meta MMS"),
     ("Footage", "U.S. Coast Guard (Ian Gray; MSST Miami) · National Guard Bureau (Michael Dann) · U.S. Marine Corps "
                 "(Justin X. Toledo), via DVIDS · NASA SVS / Black Marble · CDC. Public domain. No agency endorses "
                 "Aftermath; DoW visual information does not imply DoW endorsement."),
-    ("Figures", "CPSC 88 FR 24346 · Iqbal et al. 2012 · Portillo et al. 2024 · CDC · this repo's evals and tests "
-                "(DIODE, Hypersim, FLEURS, the readers' comparison)"),
+    ("Figures", "CPSC 88 FR 24346 · Iqbal et al. 2012 · Portillo et al. 2024 · US Census Bureau, American Community "
+                "Survey · CDC · this repo's evals (DIODE, Hypersim, the listeners' comparison)"),
     ("Music and type", "Procedural score, generated · Inter and JetBrains Mono (SIL OFL 1.1)"),
 ]
 
@@ -147,7 +150,7 @@ def text(content, x, y, w, at, cls="body", until=None, anim="rise", style="") ->
 
 
 def sub(who: str, said: str, at: float, until: float, color="muted", y=640) -> dict:
-    """The English of a Hindi line, beside the phone: who says it, and what."""
+    """The English of a Spanish line, beside the phone: who says it, and what."""
     return H(f'<div class="who">{esc(who)}</div><div class="say">{esc(said)}</div>', COL, y, COLW, cls="sub", at=at,
              until=until, style=f"border-left-color:var(--{color})")
 
@@ -167,6 +170,12 @@ def shade() -> dict:
 
 ARCH = {"phone": (72, 240, 250, 260), "laptop": (392, 140, 720, 460), "api": (392, 650, 720, 290),
         "rules": (1182, 215, 360, 310), "reply": (1612, 270, 236, 200)}  # left, top, width, height
+MIC = ('<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" '
+       'stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="12" rx="3"/>'
+       '<path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></svg>')
+SPEAKS = ('<svg width="56" height="56" viewBox="0 0 28 24" fill="none" stroke="currentColor" stroke-width="2.2" '
+          'stroke-linejoin="round" stroke-linecap="round"><path d="M3 9h5l6-5v16l-6-5H3z"/>'
+          '<path d="M18 8a6 6 0 0 1 0 8M21 5a10 10 0 0 1 0 14"/></svg>')
 PHONE_ICON = ('<svg width="44" height="70" viewBox="0 0 44 70" fill="none" stroke="#eef2fa" stroke-width="4">'
               '<rect x="3" y="3" width="38" height="64" rx="8"/><path d="M17 57h10"/></svg>')
 SPEAKER = ('<svg width="56" height="48" viewBox="0 0 28 24" fill="none" stroke="#eef2fa" stroke-width="2.2" '
@@ -229,7 +238,7 @@ def architecture(at: dict) -> list[dict]:
              ("offline", lambda: badge("offline", "no internet", "blue", 856, 158)),
              ("sam", lambda: row("sam", "SAM 3.1", "finds the door, then the distance ±6%", 226)),
              ("mlx", lambda: badge("mlx", "Apple MLX", "ink", 612, 230)),
-             ("mms", lambda: row("mms", "Meta MMS", "hears and speaks Hindi", 342)),
+             ("mms", lambda: row("mms", "Meta MMS", "hears and speaks Spanish", 342)),
              ("glimmer", lambda: row("glimmer", "Muse Glimmer", "reads the facts into a strict schema", 458)),
              ("api", lambda: card("api", "", "blue", dashed=True)),
              ("api", lambda: label("api", "META'S API", 676)),
@@ -245,7 +254,7 @@ def architecture(at: dict) -> list[dict]:
                                     'margin-top:12px">cites CDC · CPSC ·<br>NIST · Ready.gov</div>', "ink",
                                     "28px 34px")),
              ("reply", lambda: card("reply", f'{SPEAKER}<div class="k" style="font-size:28px;margin-top:12px">REPLY'
-                                    '</div><div style="font:600 30px/1.25 Inter;margin-top:8px">spoken, in Hindi</div>',
+                                    '</div><div style="font:600 30px/1.25 Inter;margin-top:8px">spoken, in Spanish</div>',
                                     "line", "26px 30px")),
              ("never", lambda: badge("never", "doesn't decide", "red", 720, 462)),
              ("never", lambda: badge("never", "doesn't decide", "red", 745, 732))]
@@ -295,9 +304,18 @@ def phone(take: Take, segments: list[tuple], marks=None, blurs=None, x=PX, y=PY,
 
 
 def first_shown(take: Take, item: dict, when: float) -> float:
-    """The phone's time of its first frame recorded at or after ``when`` in the take: where a new page appears."""
-    recorded = {url(path): t for t, path in take.frames}
-    return next(clock for clock, u in item["frames"] if recorded[u] >= when)
+    """The phone's time of the first frame, from just before ``when`` in the take, that shows the page the item ends
+    on: where a new page appears. Found by the pictures, since the recorder dates a frame a few ms either side of the
+    reply it shows."""
+    from PIL import Image
+
+    recorded = {url(path): (t, path) for t, path in take.frames}
+
+    def look(u: str) -> np.ndarray:
+        return np.asarray(Image.open(recorded[u][1]).convert("L").resize((98, 213)), np.float32)
+
+    last = look(item["frames"][-1][1])
+    return next(clock for clock, u in item["frames"] if recorded[u][0] >= when - 0.5 and np.abs(look(u) - last).mean() < 2)
 
 
 def inside_frame(scenes: list[dict]) -> None:
@@ -432,6 +450,39 @@ class Cut:
         self.speech.append((at, at + b - a))
         return at + b - a
 
+    def speaking(self, start: float, who: str, page_y: float | None = None, big: bool = False,
+                 hold: float | None = None, chip=(COL, 900), wave_at=None) -> list[dict]:
+        """Who is speaking, for exactly as long as the voice just placed plays: a chip, white for the person speaking
+        into the app, blue for the app speaking in its own voice (Meta MMS-TTS), and a level meter of that voice's own
+        loudness beside the phone, at ``page_y`` on its page (or at ``wave_at`` in the frame). ``big`` the first time,
+        and held to ``hold``, so it's learned. Times in the scene from ``start``."""
+        s = self.sounds[-1]
+        x = load(Path(s["file"]))[int(s["start"] * SR): int(s["end"] * SR)]
+        win = SR // 30
+        loud = [float(np.sqrt(np.mean(x[i:i + win] ** 2))) for i in range(0, len(x), win)]
+        levels = [round(max(0.08, v / max(loud)), 3) for v in loud]
+        at, until = s["at"] - start, s["at"] - start + s["end"] - s["start"]
+        size, sub_size = (42, 32) if big else (34, 27)
+        if who == "person":
+            color, icon = "ink", MIC
+            words = (f'<div style="font:800 {size}px Inter;letter-spacing:.04em">PERSON SPEAKING</div>'
+                     f'<div style="font:500 {sub_size}px Inter;color:var(--muted);margin-top:4px">into the app</div>')
+        else:
+            color, icon = "blue", SPEAKS
+            words = (f'<div style="font:800 {size}px Inter;letter-spacing:.04em">THE APP SPEAKING</div>'
+                     f'<div style="font:500 {sub_size}px Inter;margin-top:4px">voice: Meta MMS-TTS Spanish '
+                     '(mms-tts-spa), on the laptop</div>')
+        chip_ = H(f'<div style="display:flex;align-items:center;gap:22px;color:var(--{color})">{icon}<div>{words}</div>'
+                  '</div>', chip[0], chip[1], at=max(0.0, at - 0.1), until=hold if hold is not None else until + 0.05,
+                  anim="pop", style=f"border:4px solid var(--{color});border-radius:22px;background:rgba(6,10,19,.9);"
+                                    f"padding:{18 if big else 14}px {30 if big else 24}px")
+        if wave_at is None:
+            wave_at = (PX - 18 - 128, PY + page_y * PW / 786 - 60)
+        meter = {"kind": "wave", "x": round(wave_at[0]), "y": round(wave_at[1]), "w": 112, "h": 120,
+                 "at": round(at, 3), "until": round(until, 3), "levels": levels, "anim": "none",
+                 "color": {"ink": "#eef2fa", "blue": "#64a8ff"}[color]}
+        return [chip_, meter]
+
     def sfx(self, name: str, at: float, db: float = -4.0) -> None:
         lead = {"whoosh": 0.18, "sting": 3.6}.get(name, 0.0)  # whoosh peaks at 0.18 s; the sting hits at 3.6 s
         self.sounds.append({"at": max(0.0, at - lead), "file": str(AUDIO / "sfx" / f"{name}.wav"), "start": 0.0,
@@ -445,21 +496,12 @@ class Cut:
         self.beat(said.line, "narration", said.start, said.end, said.text, key, visual)
 
 
-NARRATED_TESTS = 840  # p3: "all eight hundred and forty tests"
-HAAN_BOOST_DB = 0.0  # c1a's «हाँ» over the other stand-in lines: +2 dB took its peak to 0 dBFS, and the mix's limiter
-#                     pulled it back 5 dB, so it stays level with them
-
-
-def tests_collected() -> int:
-    """How many tests the suite has, as pytest collects them."""
-    done = subprocess.run([sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider"], cwd=ROOT,
-                          capture_output=True, text=True)
-    return int(re.search(r"(\d+) tests? collected", done.stdout).group(1))
+HAAN_BOOST_DB = 0.0  # c1a's lone «Sí» over the other stand-in lines: level with them (a boost only met the limiter)
 
 
 def garage_english(take: Take) -> dict:
     """The garage take's turns in English, from the app's own words at the readings it gave: the subtitles for its
-    Hindi. Both photos carry the wide-door warning, so they're read as possibly too far, as the app read them."""
+    Spanish. Both photos carry the wide-door warning, so they're read as possibly too far, as the app read them."""
     from aftermath.conversation import Conversation
 
     class NoModel:
@@ -498,7 +540,7 @@ def build() -> dict:
     mark = ('<svg width="150" height="150" viewBox="0 0 24 24" fill="none" stroke="#64a8ff" stroke-width="1.6" '
             'stroke-linecap="round" stroke-linejoin="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10"/>'
             '<path d="M10 20v-6h4v6"/></svg>')
-    hindi = "font-family:'Noto Sans Devanagari',Inter"
+    READ = 3.5  # each of chapter 04's cards stays at least this long after its last part comes in
     still = 0.0015  # a phone scene's push-in: slow enough that the phone stays whole in the frame
 
     # 0. The first frame, which is also the thumbnail: the verdict at 10 ft, and the question.
@@ -516,9 +558,10 @@ def build() -> dict:
     start = c.t
     talk, back = cold.at("voice"), cold.replied(2)
     said_garage = clip_seconds(VOICES / "garage.wav")
-    garage = coach(cold, 2, [0], upto=",")[0][0]
-    garage_hi = part(split(cold.reply(2)["text"])[0], ",")
-    garage_en = part(english["garage"][0], ",") + "."
+    # The app's Spanish here is the CPSC's own (Pub. 5123s): its first sentence to "garajes", under the CPSC's English.
+    garage = coach(cold, 2, [0], upto=", espacios")[0][0]
+    garage_hi = part(split(cold.reply(2)["text"])[0], ", espacios")
+    garage_en = part(SOURCES["cpsc-indoors"].quote, ", crawlspaces") + "…"
     first = (talk + 0.15, talk + 0.15 + 0.15 + said_garage + 0.1)
     hold = 0.35 + clip_seconds(garage) + 0.15
     never = seen(cold, 3)["verdict"]
@@ -527,22 +570,25 @@ def build() -> dict:
     person_at = start + 0.15
     person_end = c.voice(person_at, VOICES / "garage.wav", "person")
     shown = start + at(back)
+    talk_y = tapped(cold, "#talk")["talk"]
+    speakers = c.speaking(start, "person", talk_y["y"] + talk_y["h"] / 2, big=True, hold=shown - start)
     coach_at = shown + 0.35
     coach_end = c.voice(coach_at, garage, "app")
+    speakers += c.speaking(start, "app", never["y"] + never["h"] / 2, big=True, hold=length)
     c.sfx("stamp", shown + 0.05, -6)
     c.scene(length, [item,
                      text("STAGED · SYNTHETIC VOICES<br>NO GENERATOR RUNNING", COL, 150, COLW, 0, cls="label mono",
                           anim="fade", style="font-size:32px;letter-spacing:.08em"),
-                     sub("PERSON · HINDI", PERSON["garage"], person_at - start - 0.15, shown - start),
+                     sub("PERSON · SPANISH", PERSON["garage"], person_at - start - 0.15, shown - start),
                      stamp(labels["never indoors"], "red", COL + 10, 330, shown - start + 0.05),
-                     sub("APP · HINDI", garage_en, coach_at - start - 0.1, length, color="red")],
+                     sub("APP · SPANISH", garage_en, coach_at - start - 0.1, length, color="red"), *speakers],
             glow="red", push=still, name="cold-open")
     c.beat("garage", "person", person_at, person_end, PERSON["garage"], person_at + 1.0,
-           "The phone listens, its talk button highlighted; beside it the English subtitle of the person's Hindi: the "
+           "The phone listens, its talk button highlighted; beside it the English subtitle of the person's Spanish: the "
            "generator is in the garage.")
     c.beat("garage-reply", "app", coach_at, coach_end, garage_en, shown + 0.3,
            f"The phone's red NEVER INDOORS card highlighted; beside it a red NEVER INDOORS stamp and, under APP · "
-           f"HINDI, the subtitle '{garage_en}'")
+           f"SPANISH, the subtitle '{garage_en}'")
 
     # 2. 01 The danger. h1: "that's how" is the garage just seen; then why a garage with its door open kills.
     start = c.t
@@ -597,16 +643,17 @@ def build() -> dict:
            h1.at("plenty of air"), "A drawn garage with its door rolled open and a red generator inside, grey CO "
                                    "drifting from it into the house; pills 'garage' and 'door open'.")
 
-    # h2: who the voice was, and the app's no, in Hindi; then the question.
+    # h2: who the voice was, and the app's no, in Spanish; then the question.
     start = c.t
     h2 = c.narrate("h2", start + 0.1)
     c.scene(h2.at("where it goes instead") - 0.1 - start, [
         tag(1),
-        H(f'<div class="k">THE APP, IN HINDI</div><div class="head" style="margin-top:22px;{hindi};'
-          f'font-size:64px;line-height:1.35">{esc(garage_hi)}</div><div class="label" style="margin-top:18px">'
+        H(f'<div class="k">THE APP, IN SPANISH</div><div class="head" style="margin-top:22px;'
+          f'font-size:64px;line-height:1.2">{esc(garage_hi)}</div><div class="label" style="margin-top:18px">'
           f'{esc(garage_en)}</div>', 260, 280, 1400, cls="card", anim="none", style="border-color:var(--red)")],
         glow="red", name="h2-no")
-    c.said(h2, h2.at("in Hindi"), f"A card THE APP, IN HINDI with the app's Hindi line and '{garage_en}' under it.")
+    c.said(h2, h2.at("in Spanish"), f"A card THE APP, IN SPANISH with the app's Spanish line and '{garage_en}' under "
+                                    "it.")
     start = c.t
     c.sfx("whoosh", start + 0.05, -9)
     c.scene(h2.end + 0.15 - start, [tag(1), text("Where should it<br>go instead?", 0, 330, 1920, 0.0, cls="hero",
@@ -620,7 +667,7 @@ def build() -> dict:
     c.beat("h2-question", "narration", h2[1][0], h2.end, h2.sentences[1], h2.at("where it goes instead") + 0.3,
            "'Where should it go instead?' in big white type with an amber measuring line drawn under it.")
 
-    # h3: the photo from 10 ft, the app's verdict in Hindi, the narration's.
+    # h3: the photo from 10 ft, the app's verdict in Spanish, the narration's.
     start = c.t
     photo1 = hero.at("photo", 1)
     close = coach(hero, 2, [1], upto=":")[0][0]
@@ -631,18 +678,21 @@ def build() -> dict:
                              lambda at: [(at(near - 0.1) + 0.15, seen(hero, 2)["head"], "red")])
     h3 = c.narrate("h3", n3.start)
     app_end = c.voice(app_at, close, "app")
+    head2 = seen(hero, 2)["head"]
+    speakers = c.speaking(start, "app", head2["y"] + head2["h"] / 2)
     c.sfx("pop", h3.at("about ten feet"), -8)
     c.sfx("stamp", h3.at("far too close"), -5)
     near_en = part(english["garage-near"][1], ":") + "."
     c.scene(length, [item, tag(1),
                      big("10 ft", "red", COL, 250, h3.at("about ten feet") - start),
                      stamp(labels["too close"], "red", COL + 10, 470, h3.at("far too close") - start),
-                     sub("APP · HINDI", near_en, app_at - start - 0.1, length, color="red")], glow="red", name="h3",
+                     sub("APP · SPANISH", near_en, app_at - start - 0.1, length, color="red"), *speakers], glow="red",
+            name="h3",
             push=still)
     c.said(h3, h3.at("far too close"), "The phone, whole, shows its red verdict card for the garage photo from 10 ft, "
                                        "highlighted; beside it a big red '10 ft' and a red TOO CLOSE stamp.")
     c.beat("near-reply", "app", app_at, app_end, near_en, app_at + 0.4,
-           f"Beside the phone: a big red '10 ft', the red TOO CLOSE stamp and, under APP · HINDI, the subtitle "
+           f"Beside the phone: a big red '10 ft', the red TOO CLOSE stamp and, under APP · SPANISH, the subtitle "
            f"'{near_en}'")
 
     # h4: from 30 ft the app asks if it's outside; the person's yes; still borderline, since a garage door can read
@@ -655,8 +705,9 @@ def build() -> dict:
     answered_at = yes_at + said_yes + 0.2 - start  # the borderline card
     h4 = Said("h4", start + answered_at + 0.35)
     end = h4.end + 0.2
-    ask_at = h4.at("asks the door's height") - start
-    border_at = h4.at("borderline") - start
+    asks = "asks the door's height" in h4.text  # the question, when the line says it (d2's card asks it too)
+    ask_at = h4.at("asks the door's height") - start if asks else end - start
+    border_at = answered_at + 0.15  # with the app's borderline card, so the stamp holds while the line says it
     segments = [(photo2 - 0.3, photo2 + 0.2), (far - 0.1, far + 0.7, answered_at - 1.3),
                 (answer - 0.1, answer + 0.9, end - start - answered_at - 1.0)]
     w3, w4 = seen(hero, 3), seen(hero, 4)
@@ -664,20 +715,23 @@ def build() -> dict:
                              lambda at: [(card_at + 0.1, w3["head"], "amber"),
                                          (yes_at - start - 0.1, w3["talk"], "blue"),
                                          (answered_at + 0.15, w4["head"], "amber"),
-                                         (ask_at - 0.1, w4["reply"], "amber")])
+                                         *([(ask_at - 0.1, w4["reply"], "amber")] if asks else [])])
     yes_end = c.voice(yes_at, VOICES / "outside.wav", "person")
+    speakers = c.speaking(start, "person", w3["talk"]["y"] + w3["talk"]["h"] / 2)
     c.narrate("h4", h4.start)
     feet = hero.reply(3)["door"]["feet"]
     ask_en = " ".join(english["garage-outside"][1:])
     c.sfx("pop", start + card_at + 0.05, -9)
     c.sfx("pop", start + answered_at + 0.05, -10)
     c.sfx("stamp", start + border_at, -6)
-    c.sfx("pop", start + ask_at, -9)
+    if asks:
+        c.sfx("pop", start + ask_at, -9)
     c.scene(length, [item, tag(1),
                      big(f"{feet:.0f} ft", "amber", COL, 250, card_at),
-                     sub("PERSON · HINDI", PERSON["outside"], yes_at - start - 0.15, ask_at - 0.1, y=620),
+                     sub("PERSON · SPANISH", PERSON["outside"], yes_at - start - 0.15, ask_at - 0.1, y=620),
                      stamp(labels["borderline"], "amber", COL + 10, 450, border_at, size=56),
-                     sub("APP · ON SCREEN", ask_en, ask_at, length, color="amber", y=600)],
+                     sub("APP · ON SCREEN", ask_en, ask_at, length, color="amber", y=600) if asks else None,
+                     *speakers],
             glow="amber", name="h4", push=still)
     c.beat("outside", "person", yes_at, yes_end, PERSON["outside"], yes_at + 0.5,
            f"The phone shows the amber card for the garage photo from 30 ft, its talk button highlighted as the person "
@@ -685,14 +739,15 @@ def build() -> dict:
     c.beat("h4", "narration", h4.start, h4[0][1], h4.sentences[0], start + border_at + 0.3,
            f"The phone's borderline card highlighted; beside it the amber '{feet:.0f} ft', an amber BORDERLINE stamp "
            "and the person's 'Yes, it's outside.'")
-    c.beat("h4-ask", "narration", h4[1][0], h4.end, h4.sentences[1], start + ask_at + 0.6,
-           f"On the whole phone screen the highlight glides to the app's question; beside it the amber "
-           f"'{feet:.0f} ft', BORDERLINE, and under APP · ON SCREEN, '{ask_en}'")
+    if asks:
+        c.beat("h4-ask", "narration", h4[1][0], h4.end, h4.sentences[1], start + ask_at + 0.6,
+               f"On the whole phone screen the highlight glides to the app's question; beside it the amber "
+               f"'{feet:.0f} ft', BORDERLINE, and under APP · ON SCREEN, '{ask_en}'")
 
     # 3. 02 Why it matters.
     c.moods.append((c.t - 1.0, "tension"))
     start = c.t
-    w1 = c.narrate("w1", start + 0.3)
+    w1 = c.narrate("w1", start + 0.2)
     c.sfx("whoosh", start, -9)
     c.sfx("pop", start + 0.35, -9)
     c.scene(w1.at("thirteen hundred") - 0.45 - start,
@@ -703,7 +758,7 @@ def build() -> dict:
             glow="amber", xfade=0.3, name="w1-days")
     start = c.t
     deaths_at = w1.at("thirteen hundred") - start
-    inside_at = w1.at("mostly with the generator") - start
+    inside_at = w1.at("mostly indoors") - start
     c.sfx("pop", start + deaths_at, -8)
     c.sfx("pop", start + inside_at, -9)
     c.scene(w1.end + 0.15 - start,
@@ -745,7 +800,7 @@ def build() -> dict:
             glow="amber", push=0.002, name="w2-guess")
     start = c.t
     c.sfx("pop", start + 0.1, -8)
-    c.scene(w2.at("so the app starts") - 0.1 - start,
+    c.scene(w2.at("Spanish is the most") - 0.1 - start,
             [tag(2), big("59%", "amber", 140, 300, 0.1, size=150),
              text("preferred a language other than English", 820, 300, 960, 0.25, cls="head"),
              text("CO patients at one Houston children's hospital, 2021 Texas freeze", 820, 480, 960, 0.4,
@@ -754,14 +809,19 @@ def build() -> dict:
     c.said(w2, w2.at("doesn't always come"), "A big amber '59%' with 'preferred a language other than English'; "
                                              "SOURCE Portillo et al. 2024.")
     start = c.t
-    asked = hero.replied(4)  # the garage take's card, in Hindi
-    hindi_card, _, _ = phone(hero, [(asked + 1.0, asked + 1.1, 20)], lambda at: [(0, seen(hero, 4)["head"], "amber")])
-    c.scene(w2.end + 0.25 - start, [tag(2), hindi_card, pill("Hindi", "ink", COL, 300, 0.0, anim="rise"),
-                                   text("Hindi first", COL, 420, 900, 0.15, cls="title")],
-            glow="blue", push=still, name="w2-hindi")
-    c.beat("w2-hindi", "narration", w2.at("so the app starts"), w2.end, "so the app starts with Hindi.",
-           w2.at("with Hindi") + 0.3, "The whole phone screen with the garage's amber verdict card in Hindi, "
-                                      "highlighted; a pill 'Hindi' and 'Hindi first' beside it.")
+    asked = hero.replied(4)  # the garage take's card, in Spanish
+    spanish_card, _, _ = phone(hero, [(asked + 1.0, asked + 1.1, 20)],
+                               lambda at: [(0, seen(hero, 4)["head"], "amber")])
+    c.scene(w2.end + 0.2 - start, [tag(2), spanish_card, pill("Spanish", "ink", COL, 300, 0.0, anim="rise"),
+                                    text("after English, the most spoken language in US homes", COL, 420, 1040, 0.15,
+                                         cls="title"),
+                                    source("US Census Bureau, American Community Survey", 0.3)],
+            glow="blue", push=still, name="w2-spanish")
+    c.beat("w2-spanish", "narration", w2.at("Spanish is the most"), w2.end, w2.sentences[1],
+           w2.at("Spanish is the most") + 1.0, "The whole phone screen with the garage's amber verdict card in Spanish, "
+                                                "highlighted; a pill 'Spanish' and 'after English, the most spoken "
+                                                "language in US homes'; SOURCE US Census Bureau, American Community "
+                                                "Survey.")
 
     # 4. 03 How it measures.
     c.moods.append((c.t - 1.0, "focus"))
@@ -858,7 +918,7 @@ def build() -> dict:
                  'stroke-dasharray="12 10"/></g></svg>')
     c.sfx("whoosh", start + 0.1, -10)
     c.sfx("pop", start + asked_at, -9)
-    c.scene(d2.end + 0.2 - start, [
+    c.scene(d2.end + 0.15 - start, [
         tag(3), {"kind": "draw", "x": 300, "y": 170, "at": 0.0, "anim": "none", "svg": doors_svg},
         text("most doors<br>6 ft 8 in", 450, 500, 400, 0.3, cls="label", style="text-align:center"),
         text("garage doors<br>7–8 ft", 1028, 500, 400, 0.6, cls="label",
@@ -882,10 +942,10 @@ def build() -> dict:
              "mms": models_at, "glimmer": models_at + 0.25, "laptop-k": laptop_at, "offline": offline_at,
              "api": api_at, "spark": spark_at, "transcribe": spark_at + 0.25}
     c.sfx("whoosh", start + 0.05, -10)
-    c.scene(m2.end + 0.35 - start, [tag(3), *architecture(built)], glow="blue", name="m2-arch")
+    c.scene(m2.end + 0.25 - start, [tag(3), *architecture(built)], glow="blue", name="m2-arch")
     c.said(m2, start + spark_at + 0.3, "A diagram builds: the PHONE's web page, an arrow to a blue LAPTOP box with "
                                        "'SAM 3.1 · finds the door, then the distance ±6%' on 'Apple MLX', 'Meta MMS · "
-                                       "hears and speaks Hindi' and 'Muse Glimmer · reads the facts into a strict "
+                                       "hears and speaks Spanish' and 'Muse Glimmer · reads the facts into a strict "
                                        "schema' and a 'no internet' pill; a REPLY box; below, 'or', a dashed META'S "
                                        "API box 'with a signal': 'Muse Spark 1.3 · reads the facts', 'Muse Voice "
                                        "Transcribe · hears the speech'.")
@@ -907,7 +967,7 @@ def build() -> dict:
     c.sfx("pop", start + one_at, -9)
     c.sfx("whoosh", start + two_at - 0.1, -10)
     c.sfx("pop", start + two_at, -8)
-    c.scene(c1[2][0] - 0.1 - start, [
+    c.scene(max(c1[2][0] - 0.1 - start, two_at + 0.27 + READ), [
         tag(4, anim="rise"),
         H('<div class="k">1</div><div class="head" style="margin-top:14px">where to put it '
           '<span style="color:var(--blue)">✓</span></div>', 160, 380, 700, cls="card", at=one_at,
@@ -922,66 +982,64 @@ def build() -> dict:
            "Two cards with an arrow between: '1 · where to put it ✓' (a blue tick) and, in amber, '2 · being "
            "understood'; chapter tag 04 THE LANGUAGE PROBLEM.")
     start = c.t
-    mms_at, api_wer_at = c1.at("nearly one Hindi word") - start, c1.at("the API about") - start
-    short_at = c1.at("short answers") - start
+    head_at = max(0.0, c1.at("On short Spanish answers") - start)
+    mms_at, api_at = c1.at("seventeen of thirty") - start, c1.at("twenty-six") - start
     c.sfx("pop", start + mms_at, -9)
-    c.sfx("pop", start + api_wer_at, -9)
-    c.sfx("pop", start + short_at, -10)
-    c.scene(max(c1.end + 0.6, start + short_at + 3.0) - start, [
-        tag(4), text("Hindi words heard wrong", 0, 170, 1920, 0.0, cls="head", style="text-align:center"),
-        big("18.2%", "amber", 330, 310, mms_at, size=120), text("MMS, on the laptop", 330, 500, 560, mms_at + 0.15,
-                                                                cls="label"),
-        big("10.5%", "blue", 1100, 310, api_wer_at, size=120),
-        text("Muse Voice Transcribe, Meta's API", 1100, 500, 640, api_wer_at + 0.15, cls="label"),
-        H('<span class="pill" style="color:var(--amber);background:var(--amber-soft);font-size:44px">short answers: '
-          'the hardest</span>', 0, 680, 1920, at=short_at, anim="pop", style="text-align:center"),
-        source("Google FLEURS, 50 read sentences (CC BY 4.0); short answers: this repo's evals", 0.3)],
+    c.sfx("pop", start + api_at, -9)
+    c.scene(max(c1.end + 0.6 - start, api_at + 0.15 + 0.27 + READ), [
+        tag(4), text("SHORT SPANISH ANSWERS HEARD RIGHT", 0, 190, 1920, head_at, cls="head mono",
+                     style="text-align:center;letter-spacing:.08em"),
+        H('17 <span style="color:var(--muted);font-weight:500">/</span> 30', 230, 330, 700, cls="hero mono",
+          at=mms_at, anim="pop", style="text-align:center;font-size:150px;color:var(--amber)"),
+        text("on the laptop (Meta MMS)", 230, 520, 700, mms_at + 0.15, cls="head", style="text-align:center"),
+        H('26 <span style="color:var(--muted);font-weight:500">/</span> 30', 990, 330, 700, cls="hero mono",
+          at=api_at, anim="pop", style="text-align:center;font-size:150px;color:var(--blue)"),
+        text("Meta's API (Voice Transcribe)", 990, 520, 700, api_at + 0.15, cls="head", style="text-align:center"),
+        source("this repo's evals: README, Listening (Oct 29), with the silence", 0.3)],
         glow="amber", name="c1-heard")
-    c.beat("c1-heard", "narration", c1[2][0], c1.end, c1.sentences[2], start + short_at + 0.4,
-           "'Hindi words heard wrong': a big amber '18.2%' for MMS on the laptop and a big blue '10.5%' for Muse Voice "
-           "Transcribe on Meta's API, and an amber pill 'short answers: the hardest'; SOURCE Google FLEURS and this "
-           "repo's evals.")
+    c.beat("c1-heard", "narration", c1[2][0], c1.end, c1.sentences[2], start + api_at + 0.6,
+           "'SHORT SPANISH ANSWERS HEARD RIGHT': a big amber '17 / 30' on the laptop (Meta MMS) and a big blue '26 / 30' "
+           "on Meta's API (Voice Transcribe); SOURCE this repo's evals.")
 
-    # c1a: what the person said and what the speech model wrote, one card each, the stand-in's «हाँ» in the pause
-    # the line leaves for it; each card stays at least 3.5 s after its last part comes in.
-    READ = 3.5
+    # c1a: a lone «Sí» that Meta's API heard as nothing, and the fix, one card each; the stand-in's «Sí» plays in the
+    # pause the line leaves for it, the music and room tone dropping out under it.
     start = c.t
     c1a = c.narrate("c1a", start + 0.5)
-    quiet = slot(c1a, "in Hindi,", "and the speech model")
-    said_haan = clip_seconds(VOICES / "haan.wav")
-    haan_at = quiet[0] + (quiet[1] - quiet[0] - said_haan) / 2
-    # The word alone: the music and room tone drop out under it, with 80 ms fades (the user's ear check, Nov 4: this
-    # take, a little clearer), and no sound effect lands on it.
-    haan_end = c.voice(haan_at, VOICES / "haan.wav", "person", boost_db=HAAN_BOOST_DB)
-    c.dips.append((haan_at + 0.01, haan_end - 0.03))
-    model_at, fhcc_at = c1a.at("the speech model") - start, c1a.at("F H C C") - start
-    word_at = fhcc_at + 0.45
-    c.sfx("stamp", start + fhcc_at, -6)
+    quiet = slot(c1a, "lone sí,", "and sent back")
+    said_si = clip_seconds(VOICES / "si.wav")
+    si_at = quiet[0] + (quiet[1] - quiet[0] - said_si) / 2
+    si_end = c.voice(si_at, VOICES / "si.wav", "person", boost_db=HAAN_BOOST_DB)
+    speakers = c.speaking(start, "person", chip=(120, 610), wave_at=(700, 300))
+    c.dips.append((si_at + 0.01, si_end - 0.03))
+    empty_at = c1a.at("sent back an empty") - start
+    fix_at = c1a.at("Adding silence") - start if "Adding silence" in c1a.text else empty_at + 1.2
+    c.sfx("stamp", start + empty_at, -6)
+    c.sfx("pop", start + fix_at, -8)
     lead = Said("c1b", 0.0).at("a warning could")  # the risk card comes in on these words
-    c1b = Said("c1b", max(c1a.end + 0.5, start + word_at + 0.27 + READ + 0.1 - lead))  # the cut is 0.1 s early
+    c1b = Said("c1b", max(c1a.end + 0.5, start + fix_at + 0.27 + READ + 0.1 - lead))  # the cut is 0.1 s early
     risk_at = c1b.at("a warning could")
     c.scene(risk_at - 0.1 - start, [
         tag(4),
-        H(f'<div class="k" style="font-size:30px">WHAT THE PERSON SAID</div><div class="hero" style="{hindi};'
-          'font-size:150px;margin-top:18px;'
-          'line-height:1.15">«हाँ»</div><div class="head" style="margin-top:14px">“yes”, in Hindi</div>'
-          '<div class="mono" style="margin-top:22px;font-size:28px;letter-spacing:.1em;color:var(--muted)">PERSON · '
-          'HINDI</div>', 120, 250, 760, h=470, cls="card", at=haan_at - start, anim="pop",
+        H('<div class="k" style="font-size:30px">WHAT THE PERSON SAID</div><div class="hero" style="font-size:140px;'
+          'margin-top:14px">«Sí»</div><div class="head" style="margin-top:10px">“yes”, in Spanish</div>'
+          '<div class="mono" style="margin-top:16px;font-size:28px;letter-spacing:.1em;color:var(--muted)">PERSON · '
+          'SPANISH</div>', 120, 170, 760, h=420, cls="card", at=si_at - start, anim="pop",
           style="border-color:var(--line)"),
-        {"kind": "draw", "x": 890, "y": 470, "at": round(model_at - 0.3, 3), "anim": "none",
+        {"kind": "draw", "x": 890, "y": 340, "at": round(empty_at - 0.3, 3), "anim": "none",
          "svg": '<svg width="140" height="80" viewBox="0 0 140 80"><path class="d" data-at="0" data-dur="0.3" '
                 'd="M10 40H125M100 18l25 22-25 22" stroke="#93a0b8" stroke-width="7"/></svg>'},
-        H('<div class="k" style="font-size:30px">WHAT THE SPEECH MODEL WROTE</div>', 1040, 250, 760, h=470, cls="card",
-          at=model_at,
-          style="border-color:var(--amber)"),
-        H("fhcc", 1040, 360, 760, cls="hero mono", at=fhcc_at, anim="slam",
-          style="color:var(--amber);font-size:150px;text-align:center"),
-        H("not a word", 1040, 560, 760, cls="head", at=word_at, style="text-align:center")],
+        H('<div class="k" style="font-size:30px">WHAT META\'S API RETURNED</div><div class="hero mono" '
+          'style="font-size:120px;margin-top:40px;text-align:center;color:var(--amber)">(empty)</div>', 1040, 170,
+          760, h=420, cls="card", at=empty_at, anim="pop", style="border-color:var(--amber)"),
+        H('<div class="k" style="font-size:30px;color:var(--blue)">THE FIX</div><div class="title" '
+          'style="margin-top:16px">0.5 s of silence each side → heard</div>', 120, 650, 1680, cls="card",
+          at=fix_at, anim="rise", style="border-color:var(--blue)"), *speakers],
         glow="amber", xfade=0.3, name="c1-said")
-    c.said(c1a, start + fhcc_at, "Two big cards: WHAT THE PERSON SAID «हाँ» “yes”, in Hindi (PERSON · HINDI), an "
-                                 "arrow, and WHAT THE SPEECH MODEL WROTE, an amber 'fhcc', 'not a word'.")
-    c.beat("haan", "person", haan_at, haan_end, "«हाँ» (yes)", haan_at + 0.4,
-           "The card WHAT THE PERSON SAID: «हाँ», “yes”, in Hindi, PERSON · HINDI, as the stand-in says it.")
+    c.said(c1a, start + fix_at + 0.6, "Three big cards: WHAT THE PERSON SAID «Sí» “yes”, in Spanish (PERSON · "
+                                      "SPANISH), an arrow to WHAT META'S API RETURNED, an amber '(empty)', and under "
+                                      "them THE FIX: '0.5 s of silence each side → heard'.")
+    c.beat("si", "person", si_at, si_end, "«Sí» (yes)", si_at + 0.4,
+           "The card WHAT THE PERSON SAID: «Sí», “yes”, in Spanish, PERSON · SPANISH, as the stand-in says it.")
     # c1b: the risk, held until the rule.
     c.narrate("c1b", c1b.start)
     lead = Said("c1c", 0.0).at("one rule")
@@ -991,12 +1049,12 @@ def build() -> dict:
     c.sfx("stamp", risk_at, -6)
     c.scene(rule_at - 0.1 - start, [
         tag(4),
-        H('<div class="k" style="color:var(--red)">THE RISK</div><div class="title" style="margin-top:26px">a garbled '
-          'answer must never<br>count as yes</div>', 160, 330, 1600, cls="card", at=risk_at - start,
+        H('<div class="k" style="color:var(--red)">THE RISK</div><div class="title" style="margin-top:26px">a '
+          'misheard answer must never<br>count as yes</div>', 160, 330, 1600, cls="card", at=risk_at - start,
           style="border-color:var(--red);padding:44px 56px")],
         glow="red", name="c1-risk")
     c.beat("c1b", "narration", c1b.start, c1b.end, c1b.text, risk_at + 0.4,
-           "A big card: THE RISK, 'a garbled answer must never count as yes'.")
+           "A big card: THE RISK, 'a misheard answer must never count as yes'.")
     # c1c: the rule, beside the phone; then the app keeping it: a mumbled answer, and it asks again.
     start = c.t
     c.narrate("c1c", c1c.start)
@@ -1020,6 +1078,8 @@ def build() -> dict:
     item["marks"].append([new_page, after["y"], after["h"], "amber"])
     item["blurs"] = [[0, 0, before["y"] + before["h"] + 10], [new_page, 0, after["y"] - 14]]
     c.voice(start + mumble_at, VOICES / "mumble.wav", "person")
+    talk1 = tapped(hero_old, "#talk", 1)["talk"]
+    speakers = c.speaking(start, "person", talk1["y"] + talk1["h"] / 2, chip=(COL, 930))
     for t in (unsure_at, add_at, clear_at, again_at):
         c.sfx("pop", start + t, -10)
     c.sfx("stamp", start + reply_at + 0.4, -6)
@@ -1034,8 +1094,8 @@ def build() -> dict:
         H("asks again", COL + 44, 480, 900, at=again_at, style=row),
         H("", COL + 28, 478, 420, h=80, at=reply_at + 0.4, anim="fade",
           style="border:4px solid var(--amber);border-radius:16px;background:var(--amber-soft)"),
-        sub("PERSON · HINDI", "Hmm…", mumble_at - 0.15, reply_at, y=720),
-        sub("APP · ON SCREEN", english["mumble"][0], reply_at + 0.2, length, color="amber", y=720)],
+        sub("PERSON · SPANISH", "Hmm…", mumble_at - 0.15, reply_at, y=720),
+        sub("APP · ON SCREEN", english["mumble"][0], reply_at + 0.2, length, color="amber", y=720), *speakers],
         glow="amber", name="c1-rule", push=still)
     c.beat("c1c", "narration", c1c.start, c1c.end, c1c.text, start + again_at + 0.4,
            "Beside the whole phone screen (the old take's card blurred), a card THE RULE: 'unsure → can add a "
@@ -1048,16 +1108,18 @@ def build() -> dict:
     # c1d: how that has held.
     start = c.t
     c1d = c.narrate("c1d", start + 0.4)
-    zero_at = c1d.at("a hundred and twenty") - start
+    zero_at = c1d.at("two hundred and forty") - start
     c.sfx("stamp", start + zero_at, -5)
-    c.scene(max(c1d.end + 0.5 - start, zero_at + 0.15 + 0.27 + READ), [
+    c.scene(max(c1d.end + 0.5 - start, zero_at + 0.3 + 0.27 + READ), [
         tag(4),
-        H('0 <span style="color:var(--muted);font-weight:500">/</span> 120', 0, 250, 1920, cls="hero mono",
+        H('0 <span style="color:var(--muted);font-weight:500">/</span> 240', 0, 220, 1920, cls="hero mono",
           at=zero_at, anim="slam", style="text-align:center;font-size:200px;color:var(--blue)"),
-        text("unclear answers cleared a warning", 0, 500, 1920, zero_at + 0.15, cls="title", style="text-align:center"),
-        source("this repo's evals: README, Reading: Spark and Glimmer (Oct 29)", 0.3)], glow="blue", name="c1-zero")
-    c.said(c1d, start + zero_at + 0.6, "A huge blue '0 / 120' over 'unclear answers cleared a warning' in big type; "
-                                       "SOURCE this repo's evals.")
+        text("transcripts dropped a warning", 0, 470, 1920, zero_at + 0.15, cls="title", style="text-align:center"),
+        text("Spanish · English · Hindi", 0, 600, 1920, zero_at + 0.3, cls="head",
+             style="text-align:center;color:var(--muted)"),
+        source("this repo's evals: README, Listening (Oct 29)", 0.3)], glow="blue", name="c1-zero")
+    c.said(c1d, start + zero_at + 0.8, "A huge blue '0 / 240' over 'transcripts dropped a warning' and 'Spanish · "
+                                       "English · Hindi' in big type; SOURCE this repo's evals.")
 
     # c2: symptom words get the emergency line from the rules, in a tenth of a second, before the language model.
     start = c.t
@@ -1065,7 +1127,7 @@ def build() -> dict:
     answered = symptom.replied(2) - symptom.at("sent")
     assert answered < 0.15, f"the symptom reply took {answered:.2f} s: the screen says 0.1 s"
     said_head = clip_seconds(VOICES / "headache.wav")
-    fresh = coach(symptom, 2, [0], upto=",")[0][0]
+    fresh = coach(symptom, 2, [2])[0][0]  # «Que salgan todos al aire libre y llamen al 911.»
     e = Said("c2", start + 0.2)
     b_start = e.end - start + 0.15
     b_len = 0.1 + 0.3 + said_head + 0.25
@@ -1080,28 +1142,33 @@ def build() -> dict:
     c2 = c.narrate("c2", e.start)
     head_at = start + b_start + 0.3
     head_end = c.voice(head_at, VOICES / "headache.wav", "person")
+    talk2 = tapped(symptom, "#talk")["talk"]
+    speakers = c.speaking(start, "person", talk2["y"] + talk2["h"] / 2)
     fresh_end = c.voice(fresh_at, fresh, "app")
+    reply2 = seen(symptom, 2)["reply"]
+    speakers += c.speaking(start, "app", reply2["y"] + reply2["h"] / 2)
     c.sfx("stamp", start + reply_at + 0.05, -5)
     c.sfx("pop", start + reply_at + 0.35, -9)
-    fresh_en = part(english["headache"][0], " and call") + "…"
+    fresh_en = english["headache"][0]
     c.scene(length, [item, tag(4),
                      pill("headache", "red", COL, 240, c2.at("headache") - start, until=reply_at, size=44),
                      pill("dizzy", "red", COL + 400, 240, c2.at("dizzy") - start, until=reply_at, size=44),
-                     sub("PERSON · HINDI", PERSON["headache"], head_at - start - 0.15, reply_at),
+                     sub("PERSON · SPANISH", PERSON["headache"], head_at - start - 0.15, reply_at),
                      stamp("fresh air · call 911", "red", COL + 10, 240, reply_at + 0.05, size=52),
                      H(f'<span class="big" style="color:var(--ink);font-size:72px">{answered:.1f} s</span>'
                        '<span class="label" style="margin-left:22px">· no language model</span>', COL + 10, 390, COLW,
                        at=reply_at + 0.35, anim="pop"),
-                     sub("APP · HINDI", fresh_en, fresh_at - start - 0.1, length, color="red", y=560)],
+                     sub("APP · SPANISH", fresh_en, fresh_at - start - 0.1, length, color="red", y=560),
+                     *speakers],
             glow="red", name="c2-symptom", push=still)
     c.said(c2, c2.at("feeling dizzy"), "The whole phone screen before the person speaks; beside it red pills "
                                        "'headache' and 'dizzy'; chapter tag 04 THE LANGUAGE PROBLEM.")
     c.beat("headache", "person", head_at, head_end, PERSON["headache"], head_at + 0.5,
            "The phone listens, its talk button highlighted; beside it the red pills 'headache' and 'dizzy' and the "
-           "subtitle 'I have a headache.'")
+           "subtitle 'My head hurts.'")
     c.beat("fresh-air", "app", fresh_at, fresh_end, fresh_en, fresh_at + 0.3,
            f"The phone's red emergency reply with its 911 button, highlighted; beside it a red FRESH AIR · CALL 911 "
-           f"stamp, '{answered:.1f} s · no language model', and the English of the app's Hindi.")
+           f"stamp, '{answered:.1f} s · no language model', and the English of the app's Spanish.")
 
     # m3: the model never gives the safety advice; the rulebook does, in code, in the CDC's own words.
     start = c.t
@@ -1131,7 +1198,7 @@ def build() -> dict:
     c.sfx("pop", start, -9)
     c.sfx("pop", start + cdc_at, -9)
     c.sfx("stamp", start + cdc_at + 0.5, -5)
-    c.scene(max(m3.end + 0.6 - start, cdc_at + 0.5 + 0.27 + 2.6), [
+    c.scene(max(m3.end + 0.6 - start, cdc_at + 0.5 + 0.27 + 1.8), [
         tag(4),
         H(f'<div class="k">THE RULEBOOK, IN CODE</div><div class="code" style="margin-top:20px;font-size:28px">{code}'
           '</div>', 72, 190, 860, cls="card", anim="none", style="border-color:var(--ink);padding:30px 34px"),
@@ -1204,30 +1271,28 @@ def build() -> dict:
     start = c.t
     p3 = c.narrate("p3", start + 0.2)
     code_at = p3[1][0] - start
-    tests_at = p3.at("eight hundred and forty tests") - start
-    tests = tests_collected()
-    if tests != NARRATED_TESTS:
-        print(f"WARNING: {tests} tests are collected, and the narration says {NARRATED_TESTS}", file=sys.stderr)
+    tests_at = p3.at("its evaluations") - start
     c.sfx("impact", start + code_at, -8)
     c.sfx("pop", start + tests_at, -9)
-    c.scene(p3.end + 0.5 - start, [
+    c.scene(p3.end + 0.3 - start, [
         text("It doesn't replace a<br>carbon monoxide alarm.", 0, 200, 1920, p3[0][0] - start, cls="title",
              style="text-align:center"),
         H(mark.replace('width="150" height="150"', 'width="70" height="70"'), 760, 505, at=code_at),
         text("Aftermath", 850, 507, 500, code_at, cls="head"),
         text("github.com/vkend/aftermath", 0, 625, 1920, code_at + 0.15, cls="head mono",
              style="text-align:center;color:var(--blue);font-size:52px"),
-        H(f'<span class="big" style="color:var(--ink);font-size:72px">{tests} tests</span>', 0, 750, 1920,
+        H('<span class="big" style="color:var(--ink);font-size:64px">code + evaluations · MIT</span>', 0, 750, 1920,
           at=tests_at, anim="pop", style="text-align:center")],
         glow="blue", xfade=0.3, name="p3-end")
-    c.said(p3, p3.at("eight hundred and forty tests") + 0.3, "On the navy desk: 'It doesn't replace a carbon monoxide "
-           f"alarm.', then the Aftermath mark, github.com/vkend/aftermath in blue and a big '{tests} tests'.")
+    c.said(p3, p3.at("its evaluations") + 0.3, "On the navy desk: 'It doesn't replace a carbon monoxide alarm.', "
+                                               "then the Aftermath mark, github.com/vkend/aftermath in blue and a big "
+                                               "'code + evaluations · MIT'.")
 
     start = c.t
     credits = "".join(f'<div style="display:flex;gap:28px;margin-top:20px"><span class="mono" style="flex:0 0 330px;'
                       f'color:var(--muted);font-size:32px;letter-spacing:.06em">{esc(k.upper())}</span>'
                       f'<span style="font-size:32px;line-height:1.3">{esc(v)}</span></div>' for k, v in CREDITS)
-    c.scene(2.5, [H(credits, 110, 120, 1700, anim="fade", ease=0.2)], glow="blue", push=0.0, name="credits")
+    c.scene(2.2, [H(credits, 110, 120, 1700, anim="fade", ease=0.2)], glow="blue", push=0.0, name="credits")
     total = round(c.t, 3)
     c.beat("credits", "title", start, total, "", start + 1.0, "Credits on the navy desk: narration, staging, models, "
            "footage, figures, music and type.")

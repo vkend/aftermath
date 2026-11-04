@@ -307,8 +307,10 @@ measurement and situation sentences ("El generador está a unos … de la puerta
 "Funcionando en una galería exterior…", "Esta foto no dice con qué lente se tomó…"), the downed-line, medical-plan and
 CO-shutoff lines, the first and last sentences of the alarm line ("Su detector … le está avisando de un peligro que
 puede matar. No busque la causa.", "Cuenten que todos hayan salido…"), the questions and the check-in's lines, the
-read-backs, the photo and plate notes, and the page's labels, the lens button «Sí, en 1×» among them. The demo
-doesn't use Spanish.
+read-backs, the photo and plate notes, and the page's labels, the lens button «Sí, en 1×» among them. The narrated
+demo video is in Spanish (the user's call, Nov 4), so some of these appear in it as the app shows and says them
+(«Está demasiado cerca.», «Está en el límite: muévalo más lejos.», «Perdón, no le entendí bien.», «Que salgan todos al
+aire libre y llamen al 911.»), not yet reviewed, and its credits say so.
 
 ## Run it
 
@@ -371,17 +373,19 @@ Management**, **Remove Profile**.
 ## The demo video
 
 The demo video is built in code from screen recordings of the real app, and narrated in English, in the third person, by
-the Mac's own text-to-speech in its Siri voice; the app speaks for itself in Hindi, in short clips under English
-subtitles. Its inputs and
-output stay in `data/video/` (`scripts/video/make_video.py --help` lists the steps).
+the Mac's own text-to-speech in its Siri voice; the app speaks for itself in Spanish (the user's call, Nov 4: it speaks
+to more of its audience; the first cut was in Hindi), in short clips under English subtitles. On screen, every voice is
+named while it plays: the person speaking into the app, or the app speaking in its own voice, Meta MMS-TTS, with a
+level meter beside the phone. Its inputs and output stay in `data/video/` (`scripts/video/make_video.py --help` lists
+the steps).
 
 Headless Chromium shows the real phone page at iPhone size and talks to the running app through it
 (`scripts/video/record.js`): it taps the buttons, uploads the door photos, and plays a stand-in person's lines into a
-fake microphone, which the page records and sends as it would a person's voice. The stand-in's voice is MMS-TTS too,
-pitched lower. Each line was auditioned through the page's own recording path, and the first take the app heard as
-meant was kept: for «हाँ, बाहर है», 2 of 16 takes, and none of the misses was taken as a yes. (The lone «हाँ» the
-narrated cut plays is the exception: the app's MMS heard none of twelve lone takes, the very failure that chapter is
-about, so it's the first take Whisper heard as «हाँ».) The scenes are staged: no
+fake microphone, which the page records and sends as it would a person's voice. The narrated cut's stand-in is macOS's
+Paulina, a woman's Mexican Spanish voice (the user's choice); the first cut's was MMS-TTS, pitched lower. Each line was
+auditioned through the page's own recording path, and the first take the app heard as meant was kept: in the first
+cut, for «हाँ, बाहर है», 2 of 16 takes, and none of the misses was taken as a yes; from Paulina, MMS heard nothing at all
+in «Mmm…», which the app takes as silence, so the mumble is «Mmm, eh…», heard as «e». The scenes are staged: no
 generator was run. The narrated cut's door photos are the builder's own garage, taken at taped distances of 10 and 30 ft
 on Nov 4, with the house number painted out and only the lens data kept: the app reads 10.5 ft, too close, and at 30 ft
 it says borderline, because a garage door can read long, and asks how tall the door is. The first cut's are the Oct 29
