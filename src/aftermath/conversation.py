@@ -486,7 +486,7 @@ class Conversation:
         before = self.situation
         situation = replace(before, symptoms=None, alarm_sounding=None, location=None, co_alarm=None)
         if before.location != "outdoors":
-            situation = replace(situation, measured_ft=None, lowest_ft=None, lens_assumed=False)
+            situation = replace(situation, measured_ft=None, lowest_ft=None, lens_assumed=False, reads_far=False)
         outside = replace(CHECKIN[1], values={"measured": situation.measured_ft is not None})
         return Conversation(self.reader, language=self.language, situation=situation, door_in=self.door_in,
                             door_checked=self.door_checked, checkin=(CHECKIN[0], outside, CHECKIN[2]),
@@ -501,12 +501,13 @@ class Conversation:
         return f"{HELLO[self.language]} {ask(self.asking, self.language)}"
 
     def quick(self, heard: str, door: tuple[float, float] | None = None, lens_assumed: bool = False,
-              tapped: Answer | None = None) -> Reply:
+              tapped: Answer | None = None, reads_far: bool = False) -> Reply:
         """The part of the reply that needs no model, said at once: the emergency line for symptom words, a danger
         for a dangerous place, or the whole reply to a short answer. ``pending`` says whether the model still has to
         read the turn (call ``finish``). ``door`` is a door measurement, (feet, lowest feet), taken from where the
         generator stands; until the generator is known to be outside, it counts only if it is. ``lens_assumed``
         says the photo didn't record its lens: the measurement then counts only once the person says it was 1×.
+        ``reads_far`` says the photo has a warning that can mean it reads too far: it can't meet the guidance.
         ``tapped`` is the answer from a tap on one of the page's buttons (``tap``), in place of reading ``heard``."""
         self.turn, self.unanswered, self.retake = [], None, False
         sounding, sick = says_alarm(heard, self.asked), says_symptoms(heard)
@@ -536,7 +537,8 @@ class Conversation:
             self.unconfirmed = {}  # answered, or not taken up: either way the read-back is done
         self._merge(facts)
         if door is not None:
-            self.situation = replace(self.situation, measured_ft=door[0], lowest_ft=door[1], lens_assumed=lens_assumed)
+            self.situation = replace(self.situation, measured_ft=door[0], lowest_ft=door[1], lens_assumed=lens_assumed,
+                                     reads_far=reads_far)
             self.said -= BAND_RULES  # a new measurement is said with its own numbers
             self.lens_confirmed = False
             # A photo is a new measurement, not a reply. What it raises is asked afresh (the person may have moved the
@@ -596,9 +598,10 @@ class Conversation:
         answer_in = "their language" if self.language in ("es", "en") else LANGUAGE_NAMES[self.language]
         return PROMPT.format(asked=asked, heard=heard, language=answer_in)
 
-    def reply(self, heard: str, door: tuple[float, float] | None = None, lens_assumed: bool = False) -> Reply:
+    def reply(self, heard: str, door: tuple[float, float] | None = None, lens_assumed: bool = False,
+              reads_far: bool = False) -> Reply:
         """A whole turn at once: the quick part, then the model's, as one reply."""
-        first = self.quick(heard, door, lens_assumed)
+        first = self.quick(heard, door, lens_assumed, reads_far=reads_far)
         if not first.pending:
             return first
         rest = self.finish()
@@ -642,7 +645,7 @@ class Conversation:
         if question.fact == "lens":  # at 1×: the measurement counts; not: it doesn't, and the photo is taken again
             s = self.situation
             self.situation = replace(s, lens_assumed=False) if value else replace(
-                s, measured_ft=None, lowest_ft=None, lens_assumed=False)
+                s, measured_ft=None, lowest_ft=None, lens_assumed=False, reads_far=False)
             self.lens_confirmed, self.retake = bool(value), not value
             return {}
         return {question.fact: value}
@@ -659,7 +662,8 @@ class Conversation:
         before = self.situation.location
         self.situation = merge(self.situation, facts)
         if before in ENCLOSED | AGAINST_HOUSE and self.situation.location == "outdoors":
-            self.situation = replace(self.situation, measured_ft=None, lowest_ft=None, lens_assumed=False)
+            self.situation = replace(self.situation, measured_ft=None, lowest_ft=None, lens_assumed=False,
+                                     reads_far=False)
             self.lens_confirmed = False
         if "door_height_in" in facts:
             self.door_height(facts["door_height_in"])

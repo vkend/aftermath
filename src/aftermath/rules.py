@@ -42,6 +42,7 @@ class Situation:
     measured_ft: float | None = None  # measured distance from the generator to the nearest door
     lowest_ft: float | None = None  # the low end of that measurement's error range
     lens_assumed: bool = False  # the door photo had no lens data: measured as if at 1×, not yet confirmed
+    reads_far: bool = False  # the door photo has a warning that can mean it reads too far (door.READS_FAR)
     exhaust_toward_house: bool | None = None
     co_alarm: bool | None = None  # a working battery or battery-backup CO alarm in the home
     symptoms: bool | None = None  # headache, dizziness, weakness, nausea, confusion, now
@@ -79,13 +80,20 @@ class Assessment:
     advice: list[Advice]  # everything, most urgent first
 
 
-def band(feet: float) -> str:
-    """The distance band of a (conservative) distance in feet."""
+def band(feet: float, reads_far: bool = False) -> str:
+    """The distance band of a (conservative) distance in feet. A reading that may be too far (``reads_far``) is at
+    best borderline: it can't meet the guidance."""
     if feet < TOO_CLOSE_FT:
         return "too close"
-    if feet <= BORDERLINE_FT:
+    if feet <= BORDERLINE_FT or reads_far:
         return "borderline"
     return "meets the guidance"
+
+
+def capped(situation: Situation) -> bool:
+    """Whether the reading is borderline only because it may be too far."""
+    s = situation
+    return s.lowest_ft is not None and s.reads_far and band(s.lowest_ft) == "meets the guidance"
 
 
 def placement(situation: Situation) -> str:
@@ -95,7 +103,7 @@ def placement(situation: Situation) -> str:
         return "against the house"
     if situation.lowest_ft is None:
         return "not measured"
-    measured = band(situation.lowest_ft)
+    measured = band(situation.lowest_ft, situation.reads_far)
     if measured == "too close":
         return measured  # either way: a photo not taken at 1× was zoomed in (it reads closer) or at 0.5× (closer yet)
     if situation.lens_assumed:
@@ -109,8 +117,8 @@ def assess(situation: Situation) -> Assessment:
     """The advice for a situation, most urgent first."""
     s, advice = situation, []
     where = placement(s)
-    distance = {"feet": s.measured_ft, "lowest": s.lowest_ft}
-    measured = band(s.lowest_ft) if s.lowest_ft is not None else None
+    distance = {"feet": s.measured_ft, "lowest": s.lowest_ft, "capped": capped(s)}
+    measured = band(s.lowest_ft, s.reads_far) if s.lowest_ft is not None else None
 
     if s.alarm_sounding:
         advice.append(Advice("alarm-sounding", Level.EMERGENCY, ("cpsc-alarm-sounds", "cpsc-alarm-after",

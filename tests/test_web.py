@@ -445,3 +445,20 @@ def test_with_warm_the_models_load_and_the_openings_are_spoken_before_anyone_ask
     assert ready.wait(10) and voice.loaded == ["hi", "en", "es"]
     assert len(list((tmp_path / "speech").rglob("*.wav"))) == 6  # each language's opening and "one moment"
     assert web.post("/api/start?language=hi").json()["text"].startswith("नमस्ते।")
+
+
+def test_a_photo_that_may_read_too_far_is_borderline_at_best(tmp_path):
+    """A wide door (a car door, or a door missing its bottom) can read too far: even at 30 ft it's only borderline,
+    and the coach says the band without the numbers."""
+    photo, mask = door_photo(tmp_path / "door.jpg", 30, width_in=70)
+    models = Models(listener=FakeListener("हाँ, बाहर है"), voice=FakeVoice(), reader=FakeGlimmer(),
+                    segmenter=FakeSam(mask))
+    web = TestClient(create_app(models))
+    sid = web.post("/api/start?language=hi").json()["session"]
+    first = web.post(f"/api/door?session_id={sid}", content=photo.read_bytes()).json()
+    assert first["placement"] == "if outside" and first["door"]["feet"] == pytest.approx(30, abs=0.3)
+    assert first["door"]["warnings"] and first["text"].startswith("अगर जनरेटर वहीं है और बाहर है, तो यह सीमा पर है")
+    recording = write_wav(tmp_path / "said.wav", 0.1 * np.sin(np.arange(16000) / 5), 16000).read_bytes()
+    turn = web.post(f"/api/talk?session_id={sid}", content=recording).json()
+    assert turn["placement"] == "borderline" and turn["text"].startswith("यह सीमा पर है: हो सके तो")
+    assert "30 फीट" not in turn["verdict"] and turn["door"]["warnings"]

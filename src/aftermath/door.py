@@ -43,6 +43,13 @@ ERROR = 0.06  # the measured error range, ± a share of the distance (see the mo
 LEAF_IN = 80.0  # the standard US door leaf, 6 ft 8 in
 EXIF_IFD, FOCAL_35, FOCAL, ZOOM, MAKE, MODEL = 0x8769, 0xA405, 0x920A, 0xA404, 0x010F, 0x0110
 TILT_LIMIT_DEG = 8.0  # beyond this, the phone's tilt adds a few percent of error
+# Warnings that can mean the door reads too far, the unsafe direction: a tilted phone, which a door partly hidden at
+# the bottom or top also looks like (on Nov 4's public scans, such doors read 42–44% and 130% too far); a wide door
+# (a car door is about half a house door's height); another door at another distance, which might be the nearer one;
+# and a door too small in the photo for the ±6% range to hold. With one of them the rules don't let a reading meet the
+# guidance (rules.band). Zoom can only make it read closer, a door off to the side is no farther than measured, and a
+# photo with no lens data counts only once the person says it was taken at 1×.
+READS_FAR = frozenset({"tilt", "garage-door", "several-doors", "small"})
 SMALLEST_PX = 120  # a door shorter than this in the photo is too small to measure well
 
 

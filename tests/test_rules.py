@@ -1,11 +1,12 @@
 import re
+from dataclasses import replace
 
 import pytest
 
 from aftermath.guidance import SOURCES
-from aftermath.phrases import (ACTION, AGAIN, DONE, DOOR_NOTES, LATER, NOT_CAUGHT, PHRASES, PLATE_CHECK,
+from aftermath.phrases import (ACTION, AGAIN, DONE, DOOR_NOTES, IF_OUTSIDE, LATER, NOT_CAUGHT, PHRASES, PLATE_CHECK,
                                 PLATE_NOTES, PLATE_WRONG, TAKE_PHOTO, UNDERSTOOD, action, distance, say)
-from aftermath.rules import AGAINST_HOUSE, BURNING, ENCLOSED, Level, Situation, assess, band
+from aftermath.rules import AGAINST_HOUSE, BURNING, ENCLOSED, Level, Situation, assess, band, placement
 
 
 def rules_of(situation):
@@ -164,7 +165,9 @@ HEADLINES = [Situation(location="garage"), Situation(location="porch"), Situatio
              Situation(location="outdoors", measured_ft=19, lowest_ft=17.9),
              Situation(location="outdoors", measured_ft=30.2, lowest_ft=28.5),
              Situation(location="outdoors", measured_ft=10, lowest_ft=9.4), Situation(measured_ft=30.2, lowest_ft=28.5),
-             Situation(measured_ft=28.9, lowest_ft=27.3, lens_assumed=True), Situation()]
+             Situation(measured_ft=28.9, lowest_ft=27.3, lens_assumed=True), Situation(),
+             Situation(location="outdoors", measured_ft=37.0, lowest_ft=34.9, reads_far=True),
+             Situation(measured_ft=37.0, lowest_ft=34.9, reads_far=True)]
 
 
 @pytest.mark.parametrize("language", ["hi", "en", "es"])
@@ -192,6 +195,35 @@ def test_the_hindi_action_lines_are_the_approved_ones():
     assert lines["borderline"] == "हो सके तो उसे और दूर ले जाएँ, 25 फीट (7.6 m) से भी आगे।"
     assert lines["meets-guidance"] == "फिर भी जितना दूर, उतना अच्छा।"
     assert lines["if-outside"] == PHRASES["confirm-outside"]["hi"] and lines["if-1x"] == PHRASES["confirm-1x"]["hi"]
+
+
+def test_a_reading_that_may_be_too_far_is_borderline_at_best():
+    """A warning that can mean the door reads too far (door.READS_FAR) keeps a reading from meeting the guidance;
+    a reading too close stays too close, and a clean one is unchanged."""
+    assert band(30, reads_far=True) == band(19, reads_far=True) == "borderline" and band(30) == "meets the guidance"
+    assert band(10, reads_far=True) == "too close"
+    # Nov 4, public scans: a synthetic door 16 ft away, partly hidden, read 37 ft with a tilt warning (it was the one
+    # false "meets the guidance"); DIODE's door behind a lectern, 28 ft away, read 39-41 ft, also tilted.
+    for feet in (37.0, 40.6, 40.4, 39.0):
+        out = Situation(location="outdoors", measured_ft=feet, lowest_ft=feet / 1.06, reads_far=True)
+        assert assess(out).placement == "borderline" and assess(replace(out, reads_far=False)).placement == (
+            "meets the guidance")
+        assert placement(replace(out, location=None)) == "if outside"
+
+
+@pytest.mark.parametrize("language", ["hi", "en", "es"])
+def test_a_reading_held_back_says_only_its_band(language):
+    """Its distance may be wrong, so the coach says the band's own sentence without the numbers; the card still shows
+    the distance and the warning."""
+    out = Situation(location="outdoors", measured_ft=37.0, lowest_ft=34.9, reads_far=True)
+    line = say(assess(out).headline, language)
+    whole = say(assess(Situation(location="outdoors", measured_ft=19.0, lowest_ft=17.9)).headline, language)
+    assert line == re.split(r"(?<=[.?!।])\s+", whole)[1] and "37" not in line
+    unsure = say(assess(replace(out, location=None)).headline, language)
+    assert unsure == IF_OUTSIDE["borderline"][language].format(twentyfive=distance(25, language))
+    if language == "hi":
+        assert line == "यह सीमा पर है: हो सके तो उसे और दूर ले जाएँ, 25 फीट (7.6 m) से भी आगे।"
+        assert unsure == "अगर जनरेटर वहीं है और बाहर है, तो यह सीमा पर है: हो सके तो उसे और दूर ले जाएँ, 25 फीट (7.6 m) से भी आगे।"
 
 
 def test_a_measurement_while_the_generator_is_inside_asks_whether_it_was_moved():

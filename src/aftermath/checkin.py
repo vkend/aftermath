@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 
 from .conversation import Conversation, key
 from .phrases import PLACES
-from .rules import Level, Situation, assess, band
+from .rules import Level, Situation, assess, band, capped
 
 TITLE = {"en": "Generator check-in", "es": "Revisión del generador", "hi": "जनरेटर की जाँच"}
 NOTE = {"en": "Open the coach and answer three quick questions: {url}",
@@ -153,7 +153,10 @@ def summary(record: Record, now: datetime) -> str:
             lines.append("(The photo didn't record which lens took it; they said the camera was at 1×.)")
         if s.location == "outdoors":
             if not unconfirmed:  # no verdict on the distance until the lens is confirmed
-                lines.append(BANDS[band(s.lowest_ft)])
+                lines.append(BANDS[band(s.lowest_ft, s.reads_far)])
+                if capped(s):
+                    lines.append("(Something in the photo can make the distance read too far, so it counts as "
+                                 "borderline at best.)")
         elif s.location is None:
             lines.append("Whether the generator is outside hasn't been confirmed, and the distance counts only if "
                          "it is.")

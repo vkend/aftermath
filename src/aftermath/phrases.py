@@ -570,7 +570,8 @@ def action(advice: Advice, language: str = "es") -> str:
     if isinstance(spec, str):
         return PHRASES[spec][language]
     index, after, before = (*spec[language], None, None)[:3]
-    sentence = SENTENCE_BREAK.split(say(advice, language))[index]
+    whole = Advice(advice.rule, advice.level, advice.sources, {**advice.values, "capped": False})
+    sentence = SENTENCE_BREAK.split(say(whole, language))[index]
     if after:
         sentence = sentence.split(after, 1)[1]
     if before:
@@ -594,10 +595,15 @@ def say(advice: Advice, language: str = "es") -> str:
         values["note"] = MEASURED_NOTE[language] if advice.values.get("measured") else ""
     if advice.rule == "if-outside":
         values["if_outside"] = IF_OUTSIDE[advice.values["band"]][language].format(**values)
+        if advice.values.get("capped"):  # a reading that may be too far: its band, not its numbers (rules.band)
+            return values["if_outside"]
     if advice.rule == "go-where-there-is-power":
         heat, cold = advice.values["heat"], advice.values["cold"]
         values["weather"], values["center"] = WEATHER[language]["both" if heat and cold else "heat" if heat else "cold"]
-    return PHRASES[advice.rule][language].format(**values)
+    text = PHRASES[advice.rule][language].format(**values)
+    if advice.rule == "borderline" and advice.values.get("capped"):
+        return SENTENCE_BREAK.split(text)[1]  # «यह सीमा पर है: हो सके तो …», without the numbers it may have wrong
+    return text
 
 
 DOOR_NOTES = {

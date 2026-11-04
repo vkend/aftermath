@@ -34,7 +34,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .checkin import Record, calendar, summary
 from .conversation import TAPPED, Conversation
-from .door import ERROR, FOOT, DoorReading, measure, overlay, readable
+from .door import ERROR, FOOT, READS_FAR, DoorReading, measure, overlay, readable
 from .guidance import SOURCES
 from .phrases import PAGE, action, door_note, plate_read, read_back, say
 from .plate import Plate, read_plate
@@ -330,7 +330,8 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
             else:
                 s.door, s.measured_at = reading, time.time()
                 text = s.talk.reply("", door=(reading.feet, reading.lowest_ft),
-                                    lens_assumed=bool(reading.values.get("lens_assumed"))).text
+                                    lens_assumed=bool(reading.values.get("lens_assumed")),
+                                    reads_far=bool(READS_FAR & set(reading.warnings))).text
             audio = spoken(text, language)
             keeping("door", session_id, {"feet": reading.feet, "lowest_ft": reading.lowest_ft,
                                          "refused": reading.refused, "warnings": reading.warnings,

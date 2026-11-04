@@ -205,3 +205,10 @@ def test_a_distance_on_an_unconfirmed_lens_gets_no_verdict_in_the_summary():
     assert "That meets CDC's guidance" in text and "Whether the camera was at 1×" not in text
     later = summary(Record(talk=talk.check_in(), before=talk.situation, checked_at=NIGHT), NIGHT)
     assert "they said the camera was at 1×" in later  # carried into the check-in
+
+
+def test_a_reading_that_may_be_too_far_is_borderline_in_the_summary_and_says_why():
+    talk = Conversation(Glimmer(), language="en", situation=replace(OUT, reads_far=True), door_checked=True)
+    text = summary(Record(talk=talk), NIGHT)
+    assert "That's borderline" in text and "That meets CDC's guidance" not in text
+    assert "can make the distance read too far, so it counts as borderline at best" in text
