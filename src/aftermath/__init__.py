@@ -20,7 +20,9 @@ def main(argv: list[str] | None = None) -> None:
     serve = commands.add_parser("serve", help="the phone page, over HTTPS on this laptop's network")
     serve.add_argument("--host", default="0.0.0.0", help="0.0.0.0 lets phones on the same Wi-Fi reach it")
     serve.add_argument("--port", type=int, default=8443)
-    serve.add_argument("--certs", type=Path, default=Path("data/certs"), help="made by scripts/make_certs.sh")
+    serve.add_argument("--certs", type=Path, default=Path("data/certs"),
+                       help="made here by scripts/make_certs.sh on the first run, and again when the laptop's address "
+                            "changes")
     serve.add_argument("--cache", type=Path, default=Path("data/cache"))
     serve.add_argument("--keep", type=Path, help="save every recording and photo sent, with a log, in this folder "
                                                  "(for testing with real voices; keep it under data/)")
@@ -48,21 +50,68 @@ def serving(args: argparse.Namespace) -> None:
     from . import meta_api
     from .web import create_app, local_models
 
-    cert, key = args.certs / "server.crt", args.certs / "server.key"
-    if not (cert.exists() and key.exists()):
-        raise SystemExit(f"no certificate in {args.certs}: run scripts/make_certs.sh first")
     if (args.listen == "muse" or args.think == "spark") and not meta_api.key():
         raise SystemExit("--listen muse and --think spark need a Meta Model API key in MODEL_API_KEY")
-    address = subprocess.run(["ipconfig", "getifaddr", "en0"], capture_output=True, text=True).stdout.strip()
+    address = network_address()
+    cert, key = certificates(args.certs, address)
     host = subprocess.run(["scutil", "--get", "LocalHostName"], capture_output=True, text=True).stdout.strip()
+    if args.think == "glimmer" and (problem := glimmer_missing()):
+        print(f"! {problem}. Short answers and photos still work; longer turns will be asked again.", flush=True)
     print(f"On a phone on the same Wi-Fi, open https://{address or 'this-laptop'}:{args.port}/ "
           f"or https://{host}.local:{args.port}/", flush=True)
+    print(f"First time on this phone? Trust {args.certs / 'aftermath-ca.crt'} on it once (README: \"The phone page "
+          "over HTTPS\").", flush=True)
     if args.keep:
         print(f"Keeping every recording and photo sent, and what the app heard, in {args.keep}/", flush=True)
-    models = partial(local_models, args.cache, args.listen, args.think)  # loaded on the first request
+    models = partial(local_models, args.cache, args.listen, args.think)
     link = f"https://{address}:{args.port}" if address else None  # the check-in reminder's link: no name in it
-    uvicorn.run(create_app(models, keep=args.keep, speech=args.cache / "speech", link=link), host=args.host,
-                port=args.port, ssl_certfile=str(cert), ssl_keyfile=str(key), log_level="warning")
+    app = create_app(models, keep=args.keep, speech=args.cache / "speech", link=link,
+                     warm=lambda seconds: print(f"Models loaded in {seconds:.0f} s: ready.", flush=True))
+    uvicorn.run(app, host=args.host, port=args.port, ssl_certfile=str(cert), ssl_keyfile=str(key),
+                log_level="warning")
+
+
+def network_address() -> str:
+    """This laptop's address on the Wi-Fi (or the first wired network), or "" with neither."""
+    import subprocess
+
+    for interface in ("en0", "en1"):
+        found = subprocess.run(["ipconfig", "getifaddr", interface], capture_output=True, text=True).stdout.strip()
+        if found:
+            return found
+    return ""
+
+
+def certificates(folder: Path, address: str) -> tuple[Path, Path]:
+    """The server certificate and key in ``folder``, made first by scripts/make_certs.sh if they're missing or don't
+    name the laptop's address. The script keeps its certificate authority, so a phone that trusts it needs nothing
+    new."""
+    import subprocess
+
+    cert, key = folder / "server.crt", folder / "server.key"
+    if cert.exists() and key.exists():
+        text = subprocess.run(["openssl", "x509", "-in", str(cert), "-noout", "-text"], capture_output=True,
+                              text=True).stdout
+        if not address or f"IP Address:{address}" in text:
+            return cert, key
+        print(f"The laptop's address changed: making a new server certificate in {folder}/", flush=True)
+    script = Path(__file__).resolve().parents[2] / "scripts" / "make_certs.sh"
+    if not script.exists():
+        raise SystemExit(f"no certificate in {folder}: run scripts/make_certs.sh first")
+    if subprocess.run(["sh", str(script), str(folder)]).returncode != 0 or not cert.exists():
+        raise SystemExit(f"couldn't make a certificate in {folder}: is the laptop on a network?")
+    return cert, key
+
+
+def glimmer_missing(model: str = "muse-glimmer:30b-mlx", url: str = "http://localhost:11434") -> str | None:
+    """Why Muse Glimmer can't read turns, or None if Ollama is running and has it."""
+    import httpx
+
+    try:
+        names = {m["name"] for m in httpx.get(f"{url}/api/tags", timeout=3).raise_for_status().json()["models"]}
+    except (httpx.HTTPError, KeyError, ValueError):
+        return f"Ollama isn't running (start the Ollama app, then `ollama pull {model}` once)"
+    return None if model in names else f"Ollama hasn't got Muse Glimmer: run `ollama pull {model}`"
 
 
 def doors(args: argparse.Namespace) -> None:

@@ -44,6 +44,10 @@ class LocalSam31:
         self.score_threshold = score_threshold
         self._predictor = None
 
+    def load(self) -> None:
+        """The model, loaded now rather than on the first photo."""
+        self._load()
+
     def segment(self, image_path: str | Path, phrases: list[str]) -> dict[str, list[Instance]]:
         digest = file_digest(image_path)
         requests = {phrase: self._request(digest, phrase) for phrase in phrases}

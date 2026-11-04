@@ -94,6 +94,10 @@ class Listener:
         return {"task": "transcribe", "backend": "mlx-audio", "model": ASR_REPO, "revision": ASR_REVISION,
                 "adapter": ADAPTERS[language], "decoder": "ctc-greedy-once", "audio": file_digest(wav)}
 
+    def load(self, language: str = "es") -> None:
+        """The model and the language's adapter, loaded now rather than on the first recording."""
+        self._use(language)
+
     def transcribe(self, wav: str | Path, language: str = "es") -> str:
         wav = Path(wav)
         if self.cache is None:
@@ -202,6 +206,10 @@ class Voice:
             self._voices[language] = (VitsModel.from_pretrained(repo, revision=revision).eval(),
                                       AutoTokenizer.from_pretrained(repo, revision=revision))
         return self._voices[language]
+
+    def load(self, language: str) -> None:
+        """The language's voice, loaded now rather than the first time it speaks."""
+        self._load(language)
 
     def rate(self, language: str) -> int:
         return self._load(language)[0].config.sampling_rate

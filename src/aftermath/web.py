@@ -2,22 +2,25 @@
 
 `aftermath serve` runs it over HTTPS with the local certificate (scripts/make_certs.sh), because a phone's browser
 only allows the microphone on a secure page. Each browser tab gets its own conversation, kept in memory. The models
-run one request at a time behind a lock. Photos and recordings are read and dropped, unless ``keep`` names a folder
-(``serve --keep``, for testing with real voices and photos), where each is saved with a line in log.jsonl saying
-what the app heard and said. With the local models nothing a person sends leaves the laptop; in API mode
-(``--listen muse``, ``--think spark``) the recording, the words heard and a rating plate's photo (without its
+run on one thread of their own, one request at a time. Photos and recordings are read and dropped, unless ``keep``
+names a folder (``serve --keep``, for testing with real voices and photos), where each is saved with a line in
+log.jsonl saying what the app heard and said. With the local models nothing a person sends leaves the laptop; in API
+mode (``--listen muse``, ``--think spark``) the recording, the words heard and a rating plate's photo (without its
 metadata) go to the Meta Model API. Door photos never do.
 """
 
+import asyncio
 import base64
 import hashlib
 import io
 import json
+import queue
 import tempfile
 import threading
 import time
 import uuid
 from collections import OrderedDict
+from concurrent.futures import Future
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -70,6 +73,33 @@ def local_models(cache_dir: Path, listen: str = "mms", think: str = "glimmer") -
     return Models(listener=listener, voice=Voice(), reader=reader, segmenter=LocalSam31(cache))
 
 
+class OneThread:
+    """Work run in order on one thread of its own. MLX runs a model only on the thread that loaded it: SAM 3.1 loaded on
+    one thread failed on another with "There is no Stream(gpu, 1) in current thread". So everything that listens,
+    reads, finds the door or speaks runs here, one request at a time, and the server's own thread stays free."""
+
+    def __init__(self) -> None:
+        self.jobs: queue.SimpleQueue = queue.SimpleQueue()
+        threading.Thread(target=self._serve, name="models", daemon=True).start()
+
+    def _serve(self) -> None:
+        while True:
+            future, work = self.jobs.get()
+            try:
+                future.set_result(work())
+            except BaseException as error:  # an HTTPException too: the request that asked gets it
+                future.set_exception(error)
+
+    def submit(self, work: Callable[[], object]) -> Future:
+        future: Future = Future()
+        self.jobs.put((future, work))
+        return future
+
+    async def run(self, work: Callable[[], object]):
+        """The work's result, awaited without holding up the server."""
+        return await asyncio.wrap_future(self.submit(work))
+
+
 @dataclass
 class Session:
     talk: Conversation  # the check-in's, once one has begun
@@ -84,14 +114,16 @@ class Session:
 
 
 def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
-               speech: Path | None = None, link: str | None = None) -> FastAPI:
+               speech: Path | None = None, link: str | None = None,
+               warm: Callable[[float], None] | None = None) -> FastAPI:
     """The app. ``keep`` saves what people send (for testing with real voices); ``speech`` keeps the coach's fixed
     lines as spoken WAVs, so they're synthesised once (``serve`` puts them in data/cache/speech/). ``link`` is the
     address the check-in reminder links to, such as ``https://<laptop-ip>:8443``: ``serve`` gives the laptop's
-    network address, because its .local name often carries its owner's name."""
+    network address, because its .local name often carries its owner's name. With ``warm``, the models load in the
+    background straight away, rather than on the first request, and ``warm`` is called with the seconds it took."""
     app = FastAPI(title="Aftermath")
     sessions: dict[str, Session] = {}
-    lock = threading.Lock()
+    models_thread = OneThread()
     loaded: list[Models] = []
     kept: list[int] = [0]
 
@@ -187,10 +219,11 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
     app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
     @app.post("/api/start")
-    def start(language: str = "hi") -> JSONResponse:
+    async def start(language: str = "hi") -> JSONResponse:
         if language not in LANGUAGES:
             raise HTTPException(400, "language must be hi, en or es")
-        with lock:
+
+        def work() -> JSONResponse:
             talk = Conversation(get_models().reader, language=language)
             sid = uuid.uuid4().hex
             s = sessions[sid] = Session(talk)
@@ -198,35 +231,42 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
             s.log.append({"coach": text})
             return JSONResponse({"session": sid, "text": text, "audio": spoken(text, language), **state(s)})
 
+        return await models_thread.run(work)
+
     @app.post("/api/talk")
     async def talk(request: Request, session_id: str) -> JSONResponse:
         """A spoken turn, first part: what was heard, and what needs no model (an emergency, a dangerous place, or
         the whole reply to a short answer). ``more`` says the page should ask /api/talk/more for the rest."""
         data = await body(request)
         s = session(session_id)
-        with lock, tempfile.TemporaryDirectory() as tmp:
+        kind = (request.headers.get("content-type") or "").split(";")[0]
+
+        def work() -> JSONResponse:
             from .speech import to_wav16k
 
-            raw = Path(tmp) / "said"
-            raw.write_bytes(data)
-            heard = get_models().listener.transcribe(to_wav16k(raw, Path(tmp) / "said.wav"), s.talk.language)
+            with tempfile.TemporaryDirectory() as tmp:
+                raw = Path(tmp) / "said"
+                raw.write_bytes(data)
+                heard = get_models().listener.transcribe(to_wav16k(raw, Path(tmp) / "said.wav"), s.talk.language)
             reply = s.talk.quick(heard)
             s.log.append({"person": heard})
             if reply.text:
                 s.log.append({"coach": reply.text})
             audio = spoken(reply.text, s.talk.language) if reply.text else None
-            kind = (request.headers.get("content-type") or "").split(";")[0]
             suffix = {"audio/mp4": ".m4a", "audio/webm": ".webm", "audio/wav": ".wav"}.get(kind, ".audio")
             keeping("talk", session_id, {"language": s.talk.language, "heard": heard, "text": reply.text,
                                          "said": reply.said, "more": reply.pending}, data, suffix)
             return JSONResponse({"heard": heard, "text": reply.text, "said": reply.said, "audio": audio,
                                  "more": reply.pending, **state(s)})
 
+        return await models_thread.run(work)
+
     @app.post("/api/talk/more")
-    def more(session_id: str) -> JSONResponse:
+    async def more(session_id: str) -> JSONResponse:
         """A spoken turn, second part: the model reads what the person said, and the reply goes on from there."""
         s = session(session_id)
-        with lock:
+
+        def work() -> JSONResponse:
             reply = s.talk.finish()
             if reply.text:
                 s.log.append({"coach": reply.text})
@@ -234,20 +274,24 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
             keeping("talk-more", session_id, {"read": reply.heard, "text": reply.text, "said": reply.said})
             return JSONResponse({"text": reply.text, "said": reply.said, "audio": audio, "more": False, **state(s)})
 
+        return await models_thread.run(work)
+
     @app.post("/api/door")
     async def door(request: Request, session_id: str, leaf_height_in: float | None = None) -> JSONResponse:
         """A photo of the door from where the generator stands. The door's height is the one the person gave, or
         ``leaf_height_in``, or a regular door's; while it's assumed, the coach asks about it."""
         data = await body(request)
         s = session(session_id)
-        language = s.talk.language
-        if leaf_height_in is not None:
-            s.talk.door_height(leaf_height_in)
-        with lock, tempfile.TemporaryDirectory() as tmp:
-            photo = Path(tmp) / ("door.heic" if data[4:12] in HEIC else "door.jpg")
-            photo.write_bytes(data)
-            reading = measure(photo, get_models().segmenter, s.talk.door_in)
-            picture = overlay(photo, reading, Path(tmp), label=False).read_bytes()
+
+        def work() -> JSONResponse:
+            language = s.talk.language
+            if leaf_height_in is not None:
+                s.talk.door_height(leaf_height_in)
+            with tempfile.TemporaryDirectory() as tmp:
+                photo = Path(tmp) / ("door.heic" if data[4:12] in HEIC else "door.jpg")
+                photo.write_bytes(data)
+                reading = measure(photo, get_models().segmenter, s.talk.door_in)
+                picture = overlay(photo, reading, Path(tmp), label=False).read_bytes()
             outline = "data:image/jpeg;base64," + base64.b64encode(picture).decode()
             if reading.refused:
                 text = door_note(reading.refused, language)
@@ -262,18 +306,22 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
                                          "door_in": s.talk.door_in, "focal": reading.values.get("focal_source"),
                                          "lens_assumed": reading.values.get("lens_assumed"),
                                          "camera": reading.values.get("camera"), "text": text}, data, photo.suffix)
-        s.log.append({"coach": text})
-        return JSONResponse({"text": text, "audio": audio, "outline": outline, "refused": reading.refused,
-                             **state(s)})
+            s.log.append({"coach": text})
+            return JSONResponse({"text": text, "audio": audio, "outline": outline, "refused": reading.refused,
+                                 **state(s)})
+
+        return await models_thread.run(work)
 
     @app.post("/api/plate")
     async def plate(request: Request, session_id: str) -> JSONResponse:
         data = await body(request)
         s = session(session_id)
-        with lock, tempfile.TemporaryDirectory() as tmp:
-            photo = Path(tmp) / ("plate.heic" if data[4:12] in HEIC else "plate.jpg")
-            photo.write_bytes(data)
-            s.plate = read_plate(get_models().reader, readable(photo, Path(tmp)))  # a HEIC as a JPEG
+
+        def work() -> JSONResponse:
+            with tempfile.TemporaryDirectory() as tmp:
+                photo = Path(tmp) / ("plate.heic" if data[4:12] in HEIC else "plate.jpg")
+                photo.write_bytes(data)
+                s.plate = read_plate(get_models().reader, readable(photo, Path(tmp)))  # a HEIC as a JPEG
             language = s.talk.language
             text = read_back(s.plate, language)
             # The next "sí" is about the plate, not the question before; with nothing read, nothing is asked.
@@ -283,10 +331,12 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
                                                        "fuel", "problems")}
             keeping("plate", session_id, {"plate": plate, "text": text}, data,
                     ".heic" if data[4:12] in HEIC else ".jpg")
-        s.log.append({"coach": text})
-        fields = {k: getattr(s.plate, k) for k in ("brand", "model", "running_watts", "starting_watts", "volts",
-                                                    "fuel", "co_shutoff", "problems")}
-        return JSONResponse({"text": text, "audio": audio, "plate": fields, **state(s)})
+            s.log.append({"coach": text})
+            fields = {k: getattr(s.plate, k) for k in ("brand", "model", "running_watts", "starting_watts", "volts",
+                                                        "fuel", "co_shutoff", "problems")}
+            return JSONResponse({"text": text, "audio": audio, "plate": fields, **state(s)})
+
+        return await models_thread.run(work)
 
     @app.get("/api/checkin.ics")
     def reminder(request: Request, session_id: str, at: str) -> Response:
@@ -309,24 +359,26 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
                         headers={"Content-Disposition": 'inline; filename="check-in.ics"'})
 
     @app.post("/api/checkin/start")
-    def check_in(session_id: str | None = None, language: str = "hi") -> JSONResponse:
+    async def check_in(session_id: str | None = None, language: str = "hi") -> JSONResponse:
         """The check-in, carrying on from the conversation, now ("check in now") or from the reminder. If the
         conversation is gone (the laptop restarted), it begins from nothing, in the reminder's language."""
         if session_id not in sessions and language not in LANGUAGES:
             raise HTTPException(400, "language must be hi, en or es")
-        with lock:
+
+        def work() -> JSONResponse:
             if session_id in sessions:
-                s = sessions[session_id]
+                sid, s = session_id, sessions[session_id]
                 s.before, s.talk = s.talk.situation, s.talk.check_in()
             else:
-                session_id = uuid.uuid4().hex
-                s = sessions[session_id] = Session(Conversation(get_models().reader, language=language).check_in(),
-                                                   lost=True)
+                sid = uuid.uuid4().hex
+                s = sessions[sid] = Session(Conversation(get_models().reader, language=language).check_in(),
+                                            lost=True)
             s.checked_at = time.time()
             text = s.talk.opening()
             s.log.append({"coach": text})
-            return JSONResponse({"session": session_id, "text": text, "audio": spoken(text, s.talk.language),
-                                 **state(s)})
+            return JSONResponse({"session": sid, "text": text, "audio": spoken(text, s.talk.language), **state(s)})
+
+        return await models_thread.run(work)
 
     @app.get("/api/summary")
     def family_summary(session_id: str, tz: str = "UTC") -> JSONResponse:
@@ -347,13 +399,12 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
     moments: dict[str, str] = {}
 
     @app.get("/api/moment")
-    def moment(language: str = "es") -> JSONResponse:
+    async def moment(language: str = "es") -> JSONResponse:
         """A short "one moment", spoken right after the person stops talking, while the reply is worked out."""
         if language not in MOMENT:
             raise HTTPException(400, "language must be hi, en or es")
         if language not in moments:
-            with lock:
-                moments[language] = spoken(MOMENT[language], language)
+            moments[language] = await models_thread.run(lambda: spoken(MOMENT[language], language))
         return JSONResponse({"text": MOMENT[language], "audio": moments[language]})
 
     @app.get("/api/text")
@@ -365,5 +416,29 @@ def create_app(models: Models | Callable[[], Models], keep: Path | None = None,
     def sources() -> list[dict]:
         return [vars(s) for s in SOURCES.values()]
 
+    def warming() -> None:
+        """Load what listens, speaks and finds the door, and say each language's opening and "one moment" once, so
+        the first person isn't the one who waits. Ollama loads Glimmer itself, on the first turn that needs it."""
+        began = time.time()
+        try:
+            loaded_models = get_models()
+            for language in LANGUAGES:
+                if hasattr(loaded_models.voice, "load"):
+                    loaded_models.voice.load(language)
+                spoken(Conversation(loaded_models.reader, language=language).opening(), language)
+                moments[language] = spoken(MOMENT[language], language)
+            if hasattr(loaded_models.listener, "load"):  # the API's listener has nothing to load
+                loaded_models.listener.load("hi")
+            if hasattr(loaded_models.segmenter, "load"):
+                loaded_models.segmenter.load()
+        except Exception as error:  # the first request tries again, and fails where the trouble is
+            import logging
+
+            logging.getLogger("aftermath").warning("loading the models failed: %r", error)
+            return
+        warm(time.time() - began)
+
+    if warm is not None:
+        models_thread.submit(warming)  # on the models' own thread, like everything that uses them
     return app
 

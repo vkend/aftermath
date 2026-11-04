@@ -364,3 +364,20 @@ def test_a_near_photo_then_a_far_one_with_its_lens_and_a_retake_end_on_the_verdi
     turn = web.post(f"/api/talk?session_id={sid}", content=recording).json()
     assert turn["more"] is False and turn["placement"] == "meets the guidance"
     assert turn["door"]["feet"] == pytest.approx(30, abs=0.3)
+
+
+def test_with_warm_the_models_load_and_the_openings_are_spoken_before_anyone_asks(tmp_path):
+    import threading
+
+    class Loading(FakeVoice):
+        loaded = []
+
+        def load(self, language):
+            self.loaded.append(language)
+
+    voice, ready = Loading(), threading.Event()
+    models = Models(listener=FakeListener("Sí."), voice=voice, reader=FakeGlimmer(), segmenter=None)
+    web = TestClient(create_app(models, speech=tmp_path / "speech", warm=lambda seconds: ready.set()))
+    assert ready.wait(10) and voice.loaded == ["hi", "en", "es"]
+    assert len(list((tmp_path / "speech").rglob("*.wav"))) == 6  # each language's opening and "one moment"
+    assert web.post("/api/start?language=hi").json()["text"].startswith("नमस्ते।")
