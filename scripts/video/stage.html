@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Aftermath video stage</title>
+<!--
+  The v2 video's frames, drawn one at a time (scripts/video/render2.js calls setup(timeline), then draw(t) for each
+  frame). The look is the podcast studio's: a navy desk with a drifting grid and a slow glow, Inter and JetBrains Mono,
+  panels, pills, stamps and big numbers. scripts/video/edit2.py writes the timeline: scenes of timed items, each one
+  positioned in the 1920x1080 frame and brought in by its own animation.
+-->
+<style>
+  :root {
+    --bg0: #060a13; --bg1: #0c1322; --panel: #111a2c; --panelHi: #16223a; --line: #24324e; --grid: #1b2740;
+    --ink: #eef2fa; --muted: #93a0b8; --faint: #56627c;
+    --red: #ff4359; --green: #3ddc97; --amber: #ffb547; --blue: #64a8ff;
+    --red-soft: rgba(255, 67, 89, .14); --green-soft: rgba(61, 220, 151, .14);
+    --amber-soft: rgba(255, 181, 71, .16); --blue-soft: rgba(100, 168, 255, .14); --ink-soft: rgba(238, 242, 250, .08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--bg0); color: var(--ink);
+    font-family: Inter, sans-serif; -webkit-font-smoothing: antialiased; }
+  canvas { position: absolute; left: 0; top: 0; }
+  .layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 960px 540px; }
+  .it { position: absolute; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-variant-ligatures: none; }
+  .tag { left: 72px; top: 54px; font: 500 34px 'JetBrains Mono'; letter-spacing: .16em; color: var(--muted);
+    white-space: nowrap; }
+  .tag b { color: var(--red); font-weight: 700; margin-right: .75em; }
+  .source { left: 72px; top: 990px; font: 400 32px 'JetBrains Mono'; color: var(--muted); white-space: nowrap; }
+  .source b { color: var(--ink); font-weight: 700; letter-spacing: .12em; margin-right: .8em; }
+  .panel { background: var(--panel); border: 2px solid var(--line); border-radius: 22px;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, .62); overflow: hidden; }
+  .stamp { font: 900 56px Inter; letter-spacing: .08em; text-transform: uppercase; border: 6px solid currentColor;
+    border-radius: 10px; padding: .16em .45em .14em; background: rgba(6, 10, 19, .86); white-space: nowrap; }
+  .pill { font: 600 36px Inter; letter-spacing: .07em; text-transform: uppercase; border: 3px solid currentColor;
+    border-radius: 999px; padding: .26em .8em .24em; white-space: nowrap; }
+  .big { font: 700 128px/1.05 'JetBrains Mono'; border: 4px solid currentColor; border-radius: 20px;
+    padding: .1em .3em .06em; white-space: nowrap; background: rgba(6, 10, 19, .55); }
+  .label { font: 500 38px/1.25 Inter; color: var(--muted); }
+  .body { font: 500 46px/1.25 Inter; color: var(--ink); }
+  .head { font: 700 60px/1.12 Inter; color: var(--ink); letter-spacing: -.005em; }
+  .title { font: 800 84px/1.08 Inter; letter-spacing: -.015em; color: var(--ink); }
+  .hero { font: 800 128px/1 Inter; letter-spacing: -.025em; color: var(--ink); }
+  .hl { background: var(--amber-soft); box-shadow: 0 0 0 3px var(--amber); border-radius: 8px; padding: 0 .12em; }
+  .sub { background: rgba(17, 26, 44, .96); border: 2px solid var(--line); border-left: 8px solid var(--muted);
+    border-radius: 18px; padding: 26px 34px 30px; box-shadow: 0 18px 50px rgba(0, 0, 0, .55); }
+  .sub .who { font: 500 32px 'JetBrains Mono'; letter-spacing: .1em; color: var(--muted); margin-bottom: 12px; }
+  .sub .say { font: 600 46px/1.24 Inter; color: var(--ink); }
+  .card { background: var(--panel); border: 4px solid var(--line); border-radius: 22px; padding: 34px 40px;
+    box-shadow: 0 22px 60px rgba(0, 0, 0, .62); }
+  .card .k { font: 600 34px 'JetBrains Mono'; letter-spacing: .14em; color: var(--muted); }
+  .code { font: 400 36px/1.5 'JetBrains Mono'; color: #d6deeb; white-space: pre; font-variant-ligatures: none; }
+  .code .kw { color: #c792ea; } .code .st { color: #ecc48d; } .code .fn { color: #82aaff; } .code .nu { color: #f78c6c; }
+  .bezel { background: #0b111d; border: 2px solid var(--line);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .7); }
+  .screen { overflow: hidden; background: #fff; }
+  .screen img { position: absolute; left: 0; top: 0; }
+  .shade { background: linear-gradient(180deg, rgba(6, 10, 19, .78) 0, rgba(6, 10, 19, 0) 260px),
+    linear-gradient(0deg, rgba(6, 10, 19, .7) 0, rgba(6, 10, 19, 0) 240px); }
+  svg .d { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<canvas id="desk" width="1920" height="1080"></canvas>
+<div id="b" class="layer"></div>
+<div id="a" class="layer"></div>
+<div id="fx" class="layer"></div>
+<script>
+const COLORS = { red: '#ff4359', green: '#3ddc97', amber: '#ffb547', blue: '#64a8ff', ink: '#eef2fa' };
+let TL = null;
+const ctx = document.getElementById('desk').getContext('2d');
+
+async function setup(timeline) {
+  TL = timeline;
+  for (const f of TL.fonts) {
+    const face = new FontFace(f.family, `url(${f.url})`, f.descriptors || {});
+    await face.load();
+    document.fonts.add(face);
+  }
+  await document.fonts.ready;
+}
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const outCubic = (p) => 1 - Math.pow(1 - p, 3);
+const inOut = (p) => p * p * (3 - 2 * p);
+const soft = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+};
+
+// The desk: a radial lift above the centre, a grid drifting left and up, a glow wandering behind.
+function desk(t, scene) {
+  ctx.fillStyle = '#060a13';
+  ctx.fillRect(0, 0, 1920, 1080);
+  const lift = ctx.createRadialGradient(960, 420, 0, 960, 420, 1250);
+  lift.addColorStop(0, '#0f1830');
+  lift.addColorStop(1, '#060a13');
+  ctx.fillStyle = lift;
+  ctx.fillRect(0, 0, 1920, 1080);
+  const glow = COLORS[scene.glow || 'blue'];
+  const gx = 960 - 360 + Math.sin(0.11 * t) * 160, gy = 540 - 220 + Math.cos(0.07 * t) * 90;
+  const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, 750);
+  g.addColorStop(0, soft(glow, 0.1));
+  g.addColorStop(1, soft(glow, 0));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1920, 1080);
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = '#1b2740';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  const ox = -((t * 8) % 64), oy = -((t * 3) % 64);
+  for (let x = ox; x < 1920; x += 64) { ctx.moveTo(x, 0); ctx.lineTo(x, 1080); }
+  for (let y = oy; y < 1080; y += 64) { ctx.moveTo(0, y); ctx.lineTo(1920, y); }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// A soft box round the part of the phone's page being talked about, the rest of the screen dimmed: marks are
+// [at, top, height, colour] in the page's pixels (786 wide), or [at, null] for none. It fades in, or glides from
+// the part before; at 0 it's there at once.
+function highlight(it, lt) {
+  const marks = it.marks || [];
+  let i = -1;
+  for (let k = 0; k < marks.length; k += 1) if (marks[k][0] <= lt + 1e-6) i = k;
+  if (i < 0 || marks[i][1] === null) return '';
+  const [at, top, h, color] = marks[i];
+  const prev = i > 0 ? marks[i - 1] : null;
+  const u = at <= 0 ? 1 : inOut(clamp((lt - at) / 0.35));
+  let y = top, hh = h, alpha = 1;
+  if (prev && prev[1] !== null && at > 0) {
+    y = prev[1] + (top - prev[1]) * u;
+    hh = prev[2] + (h - prev[2]) * u;
+  } else alpha = u;
+  const s = it.w / 786, c = COLORS[color] || COLORS.amber;
+  return `<div style="position:absolute;left:${10 * s}px;top:${(y - 10) * s}px;width:${it.w - 20 * s}px;height:${(hh + 20) * s}px;border:4px solid ${c};border-radius:${30 * s}px;box-shadow:0 0 0 3000px rgba(6,10,19,.42),0 0 26px ${soft(c, 0.55)};opacity:${alpha}"></div>`;
+}
+
+// A part of the phone's page made unreadable: the same frame, strongly blurred, over that part. blurs are
+// [at, top, height] in the page's pixels, or [at, null] for none.
+function blurred(it, lt, url) {
+  if (!it.blurs) return '';
+  const [, top, h] = pick(it.blurs, lt);
+  if (top === null) return '';
+  const s = it.w / 786;
+  return `<div style="position:absolute;left:0;top:${top * s}px;width:${it.w}px;height:${h * s}px;overflow:hidden">
+    <img src="${url}" style="position:absolute;left:0;top:${-top * s}px;width:${it.w}px;filter:blur(16px)"></div>`;
+}
+
+function pick(list, t) { // the last entry at or before t
+  let lo = 0, hi = list.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (list[mid][0] <= t) lo = mid; else hi = mid - 1;
+  }
+  return list[lo];
+}
+
+function place(it) {
+  let s = '';
+  if (it.x !== undefined && it.x !== null) s += `left:${it.x}px;`;
+  if (it.y !== undefined && it.y !== null) s += `top:${it.y}px;`;
+  if (it.w) s += `width:${it.w}px;`;
+  if (it.h) s += `height:${it.h}px;`;
+  return s;
+}
+
+// How an item comes in: "rise" fades up 24 px over its ease (8 frames by default), "slam" drops a stamp from 1.6x,
+// "pop" scales from 0.85, "fade" only fades, "none" is there at once.
+function motion(it, lt) {
+  const ease = it.ease || 0.27;
+  const p = clamp((lt - (it.at || 0)) / ease);
+  const rot = it.rot ? `rotate(${it.rot}deg) ` : '';
+  switch (it.anim || 'rise') {
+    case 'none': return rot ? `transform:${rot};` : '';
+    case 'fade': return `opacity:${outCubic(p)};${rot ? `transform:${rot};` : ''}`;
+    case 'pop': {
+      const e = outCubic(p);
+      return `opacity:${e};transform:${rot}scale(${0.85 + 0.15 * e});`;
+    }
+    case 'slam': {
+      const q = clamp((lt - (it.at || 0)) / 0.16);
+      return `opacity:${clamp(q * 2.2)};transform:${rot}scale(${1.6 - 0.6 * q * q});`;
+    }
+    case 'left': {
+      const e = outCubic(p);
+      return `opacity:${e};transform:${rot}translateX(${(1 - e) * -36}px);`;
+    }
+    default: {
+      const e = outCubic(p);
+      return `opacity:${e};transform:${rot}translateY(${(1 - e) * 24}px);`;
+    }
+  }
+}
+
+const ITEMS = {
+  html(it, lt) {
+    return `<div class="it ${it.cls || ''}" style="${place(it)}${it.style || ''};${motion(it, lt)}">${it.html}</div>`;
+  },
+  count(it, lt) { // a number counting up to its value
+    const p = outCubic(clamp((lt - (it.at || 0) - (it.delay || 0)) / (it.dur || 0.9)));
+    const n = Math.round(it.from + (it.to - it.from) * p).toLocaleString('en-US');
+    return `<div class="it ${it.cls || ''}" style="${place(it)}${it.style || ''};${motion(it, lt)}">${it.html.replace('{n}', n)}</div>`;
+  },
+  phone(it, lt) { // the phone's whole screen, never scrolled or cropped; a highlight on the part being talked about
+    const [, url] = pick(it.frames, lt);
+    const r = Math.round(it.w * 0.085);
+    return `<div class="it bezel" style="left:${it.x - 18}px;top:${it.y - 18}px;width:${it.w + 36}px;height:${it.h + 36}px;border-radius:${r + 18}px;${motion(it, lt)}"></div>
+      <div class="it screen" style="left:${it.x}px;top:${it.y}px;width:${it.w}px;height:${it.h}px;border-radius:${r}px;${motion(it, lt)}">
+      <img src="${url}" style="width:${it.w}px">${blurred(it, lt, url)}${highlight(it, lt)}</div>`;
+  },
+  video(it, lt) { // frames extracted from a clip, played from when the item comes in, pushed in slowly
+    const n = clamp(Math.floor((lt - (it.at || 0)) * 30) + (it.offset || 0), 0, it.count - 1);
+    const zoom = 1 + (it.push === undefined ? 0.012 : it.push) * Math.max(0, lt - (it.at || 0));
+    const frame = `${it.dir}/${String(n + 1).padStart(4, '0')}.jpg`;
+    const look = it.panel ? 'panel' : '';
+    return `<div class="it ${look}" style="${place(it)}overflow:hidden;${it.radius !== undefined ? `border-radius:${it.radius}px;` : ''}${motion(it, lt)}">
+      <img src="${frame}" style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;transform:scale(${zoom});transform-origin:${it.origin || '50% 50%'}"></div>`;
+  },
+  img(it, lt) {
+    const zoom = 1 + (it.push || 0) * Math.max(0, lt - (it.at || 0));
+    return `<div class="it ${it.cls || ''}" style="${place(it)}overflow:hidden;${it.style || ''};${motion(it, lt)}">
+      <img src="${it.src}" style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:${it.fit || 'cover'};transform:scale(${zoom});transform-origin:${it.origin || '50% 50%'}"></div>`;
+  },
+  trace(it, lt) { // SAM's outline, drawn round the door like a pen: the outline's pixels revealed by a turning sweep
+    const p = inOut(clamp((lt - (it.at || 0) - (it.delay || 0)) / (it.dur || 0.9)));
+    const deg = p * 360;
+    const mask = `conic-gradient(from ${it.from || 180}deg at ${it.cx}% ${it.cy}%, #000 ${deg}deg, transparent ${deg + 0.01}deg)`;
+    return `<img class="it" src="${it.src}" style="${place(it)}-webkit-mask-image:${mask};mask-image:${mask};${motion(it, lt)}">`;
+  },
+  draw(it, lt) { // an SVG whose paths with class "d" draw on, each from its own data-at, over its data-dur
+    const local = lt - (it.at || 0);
+    const svg = it.svg.replace(/data-at="([\d.]+)" data-dur="([\d.]+)"/g, (m, a, d) => {
+      const p = inOut(clamp((local - Number(a)) / Number(d)));
+      return `pathLength="1" stroke-dasharray="1" stroke-dashoffset="${1 - p}" opacity="${p > 0 ? 1 : 0}"`;
+    }).replace(/data-show="([\d.]+)"/g, (m, a) => {
+      const p = outCubic(clamp((local - Number(a)) / 0.27));
+      return `opacity="${p}"`;
+    });
+    return `<div class="it" style="${place(it)}${motion(it, lt)}">${svg}</div>`;
+  },
+};
+
+// leaving: a scene fading out under the next one, which keeps its own chapter tag and source line, so two never mix
+function render(scene, lt, leaving = false) {
+  return scene.items.filter((it) => lt >= (it.at || 0) - 1e-6 && (it.until === undefined || lt < it.until))
+    .filter((it) => !(leaving && /\b(tag|source)\b/.test(it.cls || '')))
+    .map((it) => ITEMS[it.kind](it, lt)).join('');
+}
+
+function sceneAt(t) {
+  let lo = 0, hi = TL.scenes.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (TL.scenes[mid].start <= t + 1e-6) lo = mid; else hi = mid - 1;
+  }
+  return lo;
+}
+
+async function draw(t) {
+  const i = sceneAt(t);
+  const scene = TL.scenes[i];
+  const lt = t - scene.start;
+  desk(t, scene);
+  const a = document.getElementById('a'), b = document.getElementById('b'), fx = document.getElementById('fx');
+  const push = (s, local) => `scale(${1 + (s.push === undefined ? 0.0045 : s.push) * local})`;
+  a.innerHTML = render(scene, lt);
+  a.style.transform = push(scene, lt);
+  a.style.opacity = 1;
+  b.innerHTML = '';
+  if (scene.xfade && lt < scene.xfade && i > 0) { // between chapters: the last one fades out under the next
+    const before = TL.scenes[i - 1];
+    const blt = before.end - before.start + lt;
+    b.innerHTML = render(before, blt, true);
+    b.style.transform = push(before, blt);
+    a.style.opacity = inOut(lt / scene.xfade);
+  }
+  const fade = TL.fadeOut ? clamp((t - (TL.total - TL.fadeOut)) / TL.fadeOut) : 0;
+  const fadeIn = TL.fadeIn ? 1 - clamp(t / TL.fadeIn) : 0;
+  fx.style.background = `rgba(0,0,0,${Math.max(fade, fadeIn)})`;
+  await Promise.all([...document.images].map((img) => img.decode().catch(() => null)));
+}
+</script>
+</body>
+</html>
